@@ -175,10 +175,21 @@ function BroadcastNewCall(call)
     local players = ESX.GetExtendedPlayers()
 
     for _, xPlayer in pairs(players) do
-        if IsDispatcher(xPlayer.source) then
-            if CanSeeCatgory(xPlayer.source, call.category) then
-                TriggerClientEvent('dispatch:newCall', xPlayer.source, call)
+        local src = xPlayer.source
+        local send = false
+        -- Dispatcher sehen immer (Kategorie-basiert)
+        if IsDispatcher(src) then
+            send = CanSeeCatgory(src, call.category)
+        else
+            -- Einheiten (Polizei/EMS) erhalten Events nur für Blips, falls konfiguriert und Kategorie erlaubt
+            if (Config.Dispatch and Config.Dispatch.callBlips and Config.Dispatch.callBlips.enabled) then
+                if (Config.Dispatch.callBlips.showForPolice and IsPolice(src)) or (Config.Dispatch.callBlips.showForEMS and IsEMS(src)) then
+                    send = CanSeeCatgory(src, call.category)
+                end
             end
+        end
+        if send then
+            TriggerClientEvent('dispatch:newCall', src, call)
         end
     end
 end
@@ -362,7 +373,7 @@ RegisterNetEvent('dispatch:requestBackup', function(callId)
 end)
 
 -- ================================================
--- Alle Calls abrufen
+-- Alle Calls abrufen (für Dispatcher UI)
 -- ================================================
 
 RegisterNetEvent('dispatch:getCalls', function()
@@ -389,6 +400,32 @@ RegisterNetEvent('dispatch:getCalls', function()
     end)
 
     TriggerClientEvent('dispatch:receiveCalls', source, visibleCalls)
+end)
+
+-- ================================================
+-- Aktive Calls für Einheiten (Polizei/EMS)
+-- nur für Blip-Anzeige, keine UI
+-- ================================================
+
+RegisterNetEvent('dispatch:getActiveCallsForUnits', function()
+    local src = source
+    if not (Config.Dispatch and Config.Dispatch.callBlips and Config.Dispatch.callBlips.enabled) then return end
+
+    local allowPolice = Config.Dispatch.callBlips.showForPolice and IsPolice(src)
+    local allowEMS = Config.Dispatch.callBlips.showForEMS and IsEMS(src)
+    local allowDisp = Config.Dispatch.callBlips.showForDispatchers and IsDispatcher(src)
+    if not (allowPolice or allowEMS or allowDisp) then return end
+
+    local list = {}
+    for _, call in pairs(ActiveCalls) do
+        if call and call.status ~= 'completed' and call.status ~= 'expired' then
+            if CanSeeCatgory(src, call.category) or allowDisp then
+                table.insert(list, call)
+            end
+        end
+    end
+
+    TriggerClientEvent('dispatch:receiveActiveCallsForUnits', src, list)
 end)
 
 -- ================================================
@@ -421,10 +458,19 @@ function BroadcastCallUpdate(call)
     local players = ESX.GetExtendedPlayers()
 
     for _, xPlayer in pairs(players) do
-        if IsDispatcher(xPlayer.source) then
-            if CanSeeCatgory(xPlayer.source, call.category) then
-                TriggerClientEvent('dispatch:callUpdated', xPlayer.source, call)
+        local src = xPlayer.source
+        local send = false
+        if IsDispatcher(src) then
+            send = CanSeeCatgory(src, call.category)
+        else
+            if (Config.Dispatch and Config.Dispatch.callBlips and Config.Dispatch.callBlips.enabled) then
+                if (Config.Dispatch.callBlips.showForPolice and IsPolice(src)) or (Config.Dispatch.callBlips.showForEMS and IsEMS(src)) then
+                    send = CanSeeCatgory(src, call.category)
+                end
             end
+        end
+        if send then
+            TriggerClientEvent('dispatch:callUpdated', src, call)
         end
     end
 end
@@ -433,8 +479,19 @@ function BroadcastCallRemoved(callId)
     local players = ESX.GetExtendedPlayers()
 
     for _, xPlayer in pairs(players) do
-        if IsDispatcher(xPlayer.source) then
-            TriggerClientEvent('dispatch:callRemoved', xPlayer.source, callId)
+        local src = xPlayer.source
+        local send = false
+        if IsDispatcher(src) then
+            send = true
+        else
+            if (Config.Dispatch and Config.Dispatch.callBlips and Config.Dispatch.callBlips.enabled) then
+                if (Config.Dispatch.callBlips.showForPolice and IsPolice(src)) or (Config.Dispatch.callBlips.showForEMS and IsEMS(src)) then
+                    send = true
+                end
+            end
+        end
+        if send then
+            TriggerClientEvent('dispatch:callRemoved', src, callId)
         end
     end
 end

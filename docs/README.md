@@ -2,7 +2,7 @@
 
 Ein modulares FiveM‑System, das Stadtzonen, Spieler‑ und Fahrzeughistorien sowie Notrufe (Dispatch) und ein MDT (Mobile Data Terminal) zentral verbindet. Entwickelt für ESX, mit moderner NUI (HTML/CSS/JS), optionalem Radial‑Menü (ox_lib) und Interaktionen über ox_target.
 
-Aktuelle Version der Resource: 2.1.0 (siehe `fxmanifest.lua`)
+Aktuelle Version der Resource: 2.4.0 (siehe `fxmanifest.lua`)
 Heatmap‑Modul: v2.2 (Client‑Hinweis in `cl_zonemap.lua`)
 
 —
@@ -15,6 +15,7 @@ Heatmap‑Modul: v2.2 (Client‑Hinweis in `cl_zonemap.lua`)
 - Konfiguration (`shared/config.lua`)
 - Befehle, Keybinds & Menüs
 - Nutzung: Dispatch, MDT, Heatmap, ox_target
+- Polizei-Funktionen (NEU in v2.4)
 - Admin‑Dashboard
 - API (Exports & Events)
 - ConVars (Datenbank‑Verbindung)
@@ -35,7 +36,10 @@ Heatmap‑Modul: v2.2 (Client‑Hinweis in `cl_zonemap.lua`)
 - Persistente Spielerprofile inkl. Reputation und Risk‑Level
 - Fahrzeug‑Historie und Risiko‑Berechnung
 - Radial‑Menü (ox_lib) als zentraler Einstiegspunkt
-- ox_target‑Interaktionen an Welt‑Objekten (Polizei‑Computer, Leitstelle, Telefone)
+- ox_target‑Interaktionen an Personen, Fahrzeugen und Welt‑Objekten
+- **NEU: Personen-Check mit Risk-Anzeige (ox_target)**
+- **NEU: Kooperation/Selbststellung vermerken (ox_target)**
+- **NEU: Automatische Zone-Warnungen für Zivilisten**
 - Saubere Modul‑Trennung (client/server/shared) und klar konfigurierbar
 
 Dateien/Module (Auszug):
@@ -50,8 +54,8 @@ Dateien/Module (Auszug):
 ## Voraussetzungen
 - FiveM Artifact (cerulean)
 - ESX (es_extended)
-- ox_lib (für Radial‑Menü, Notifications)
-- ox_target (optional, empfohlen – Welt‑Interaktionen)
+- ox_lib (für Radial‑Menü, Notifications, Input-Dialoge)
+- ox_target (erforderlich für Personen/Fahrzeug-Interaktionen)
 - PostgreSQL (empfohlen: Neon Serverless)
 
 Alle Dependencies sind im `fxmanifest.lua` hinterlegt.
@@ -63,11 +67,11 @@ Alle Dependencies sind im `fxmanifest.lua` hinterlegt.
 1) Resource in den `resources`‑Ordner legen: `resources/[city]/city_memory`
 2) In der `server.cfg` unter Dependencies laden, z. B. nach ESX/ox_lib/ox_target.
 3) Datenbank konfigurieren (siehe ConVars unten) und Schema ausführen:
-   - Entweder den Inhalt von `sql/schema.sql` in Neon/PSQL ausführen
-   - Oder, falls die Resource Tabellen selbst anlegt, Logs prüfen (empfohlen: Schema einmalig manuell ausführen)
+  - Entweder den Inhalt von `sql/schema.sql` in Neon/PSQL ausführen
+  - Oder, falls die Resource Tabellen selbst anlegt, Logs prüfen (empfohlen: Schema einmalig manuell ausführen)
 4) Server starten und Konsole beobachten. Bei Erfolg erscheint u. a.:
-   - `[City Memory PG] Connection via ...`
-   - `Heatmap System v2.2 geladen` (Client)
+  - `[City Memory PG] Connection via ...`
+  - `Heatmap System v2.2 geladen` (Client)
 5) Update: Dateien ersetzen, Changelog beachten, ggf. neue Config‑Keys ergänzen (Diff prüfen).
 
 ---
@@ -75,7 +79,7 @@ Alle Dependencies sind im `fxmanifest.lua` hinterlegt.
 ## Datenbank (Neon/PostgreSQL)
 
 - Serverseitiger Connector: `server/pg.lua` (HTTP‑API von Neon, keine externen Libs)
-- Verbindung per ConVars (siehe Abschnitt „ConVars“)
+- Verbindung per ConVars (siehe Abschnitt „ConVars")
 - Tabellen/Indizes siehe `sql/schema.sql`
 
 Hinweise:
@@ -107,6 +111,7 @@ Wichtige Blöcke (Auszug):
 
 - Dispatch
   - `Config.Dispatch.callTimeout`, `maxActiveCalls`, `autoDeleteCompleted`, `notifyOnNewCall`, `autoSetWaypoint`
+  - `Config.Dispatch.callBlips` (Karten‑Markierung des Notruf‑Ortes bis zum Abschluss; Sichtbarkeit/Radius/Farben)
 
 - MDT
   - `Config.MDT.enabled`, `searchCooldown`, `maxSearchResults`, `showPlayerPhotos`, `allowNotesEdit`
@@ -144,12 +149,79 @@ Tipp: Lies die Datei `shared/config.lua` einmal komplett — viele Optionen sind
   - `/cityadmin` — Admin‑Dashboard (Admin‑Gruppe)
 
 - Radial‑Menü (ox_lib):
-  - Ein zentraler Eintrag „Notruf 911“ oder „Leitstelle“ je nach Job (`cl_menu.lua`)
-  - Öffnet Untermenüs: Notruf, Dispatch, MDT, Heatmap, Admin
+  - Dynamischer Eintrag je nach Job:
+    - Zivilisten: „📞 Notruf 911"
+    - Polizei/EMS: „📟 Leitstelle"
+  - Öffnet Untermenüs: Notruf, Dispatch, MDT, Heatmap, Polizei-Aktionen, Admin
 
 - Keybinds:
   - Historische Keybinds sind als Fallback in `Config.Keys` vorhanden, aber bei `useRadialMenu = true` deaktiviert
   - Optionales Hauptmenü‑Keybind: aktiviere `Config.Menu.enableKeybind`
+
+---
+
+## Polizei-Funktionen (NEU in v2.4)
+
+### ox_target: Personen-Interaktionen
+
+Polizisten können Personen direkt anschauen und folgende Aktionen ausführen:
+
+| Aktion | Icon | Beschreibung |
+|--------|------|--------------|
+| **Person überprüfen** | 🪪 | Zeigt Risk-Level, Reputation, Tendenzen und letzte Vorfälle |
+| **Kooperation vermerken** | 🤝 | Positiver Eintrag ins Profil (+Reputation) |
+| **Selbststellung vermerken** | 🙌 | Positiver Eintrag ins Profil (+Reputation) |
+
+### ox_target: Fahrzeug-Interaktionen
+
+| Aktion | Icon | Beschreibung |
+|--------|------|--------------|
+| **Kennzeichen abfragen** | 🔍 | Zeigt Heat, Verfolgungen, Flagged-Status |
+| **Fahrzeug zur Fahndung** | 🚩 | Öffnet Dialog für Fahndungsgrund |
+
+### Polizei-Aktionen Untermenü
+
+Im Radial-Menü unter „🚔 Polizei-Aktionen":
+
+```
+📟 Leitstelle
+  └── 🚔 Polizei-Aktionen
+        ├── 🔍 Person überprüfen (Hinweis: ox_target nutzen)
+        ├── 🚗 Kennzeichen eingeben (manueller Dialog)
+        ├── 📋 Neue Fahndung (Person oder Fahrzeug)
+        └── 🗺️ Hotspots anzeigen (Heatmap toggle)
+```
+
+### Personen-Check Ergebnis
+
+Bei Überprüfung einer Person erscheint ein Context-Menü:
+
+```
+👤 Max Mustermann
+├── 🔴 HOHES RISIKO (Reputation: 25%)
+├── ⚠️ Gewaltbereitschaft (80% Tendenz)
+├── 🏃 Fluchtgefahr (60% Tendenz)
+├── 📋 Letzte Vorfälle
+│   ├── 🏃 Flucht vor Polizei
+│   ├── 🔫 Waffengebrauch (Spieler)
+│   └── 🚗 Verfolgungsjagd
+└── 🔍 Im MDT öffnen
+```
+
+Bei hohem/mittlerem Risiko erscheint zusätzlich ein Warn-Hinweis.
+
+---
+
+## Zone-Warnungen für Zivilisten (NEU in v2.4)
+
+- Server überwacht Spielerpositionen (alle 5 Sekunden)
+- Beim Betreten einer Zone mit Heat ≥ 0.4 erscheint eine Warnung
+- Warnstufen:
+  - 🟠 **Orange** (Heat ≥ 0.4): „Vorsicht! Erhöhte Kriminalität in dieser Gegend."
+  - 🔴 **Rot** (Heat ≥ 0.7): „Gefährliche Gegend! Hier passiert viel Kriminalität."
+- 10 Minuten Cooldown pro Zone pro Spieler
+- Polizei erhält keine Warnungen (haben die Heatmap)
+- Onboarding: Beim ersten Mal erscheint eine ausführliche Erklärung
 
 ---
 
@@ -159,7 +231,7 @@ Spielerprofile werden serverseitig in der Datenbank persistiert und kontinuierli
 
 - Speicherung: `server/sv_profiles.lua` (Profile & Events), Daten liegen in Tabellen gemäß `sql/schema.sql`.
 - Lebenszyklus: Profile werden beim ersten relevanten Event automatisch angelegt.
-- Zugriff: MDT, Admin‑Dashboard und Server‑Exports (siehe API‑Abschnitt).
+- Zugriff: MDT, Admin‑Dashboard, ox_target Personen-Check und Server‑Exports (siehe API‑Abschnitt).
 
 ### Begriffe
 - Reputation (0.0–1.0): Laufende Einschätzung des Verhaltens eines Spielers. 1.0 = vorbildlich, 0.0 = sehr problematisch.
@@ -175,25 +247,26 @@ Reputation ändert sich durch Ereignisse und passives Decay:
 - Ereignisse: Jedes registrierte Event hat einen Modifier (`Config.ReputationModifiers`). Beispiele:
   - `flee_police = -0.08`
   - `weapon_vs_player = -0.10`
+  - `weapon_vs_npc = -0.03`
   - `cooperate = +0.03`
   - `surrender = +0.05`
-- Server ruft bei Vorkommnissen z. B. `RegisterPlayerEvent(identifier, eventType, impact?, context?)` auf:
-  - `impact` (optional) kann zusätzliche Gewichtung sein; fehlt er, nutzt der Server den vordefinierten Modifier.
-  - `context` wird als `JSONB` gespeichert (Beweise, Orte, Beteiligte).
+  - `peaceful_day = +0.01`
+- Automatische Erkennung (via `cl_effects.lua`):
+  - Schüsse abfeuern (60s Cooldown)
+  - Waffengebrauch gegen Spieler/NPC (30s Cooldown)
+  - Verfolgungsjagd (>80 km/h + Wanted Level, 90s Cooldown)
+  - Flucht (Wanted Level sinkt auf 0)
+- Manuelle Eingabe durch Polizei (via ox_target):
+  - Kooperation vermerken
+  - Selbststellung vermerken
 - Passives Decay/Erholung: In regelmäßigen Intervallen wird Reputation leicht Richtung neutral/positiv angepasst, konfiguriert über `Config.PlayerProfile.decayRate`.
-
-Pseudologik (vereinfacht):
-```
-newRep = clamp(oldRep + modifier + impact, minReputation, maxReputation)
-// Zusätzlich periodische kleine Erholung: +decayRate
-```
 
 ### Risk‑Level
 Aus Reputation wird ein einfaches Risikoniveau abgeleitet. Schwellen:
 
-- `Config.RiskLevels.high` (Default 0.30): Darunter gilt der Spieler als „High‑Risk“.
-- `Config.RiskLevels.medium` (Default 0.45): Darunter, aber über „high“, gilt „Medium“.
-- Alles darüber: „Low“/„Normal“.
+- `Config.RiskLevels.high` (Default 0.30): Darunter gilt der Spieler als „High‑Risk".
+- `Config.RiskLevels.medium` (Default 0.45): Darunter, aber über „high", gilt „Medium".
+- Alles darüber: „Low"/„Normal".
 
 Exports (Server):
 - `GetPlayerProfile(identifier)` → vollständige Profildaten
@@ -228,7 +301,12 @@ Hinweis: Fahrzeuge besitzen analoge Konzepte in `server/sv_vehicles.lua` (Histor
 - Dateien: `client/cl_zonemap.lua`, `server/sv_zones.lua`, NUI `html/js/heatmap.js`
 
 ### ox_target Interaktionen
-- Computer (MDT/Dispatch), Leitstellentische, Telefone — Standorte in `Config.TargetLocations`
+- **Personen** (nur Polizei): Überprüfen, Kooperation/Selbststellung vermerken
+- **Fahrzeuge** (nur Polizei): Kennzeichen abfragen, zur Fahndung ausschreiben
+- **Polizei-Fahrzeuge**: MDT und Dispatch öffnen
+- **EMS-Fahrzeuge**: Dispatch öffnen
+- **Welt-Objekte**: Computer (MDT/Dispatch), Leitstellentische, öffentliche Telefone
+- Standorte in `Config.TargetLocations`
 - Dateien: `client/cl_target.lua`
 
 ---
@@ -270,8 +348,19 @@ Server‑Exports
   - `GetActiveCalls()`
 
 Events (Auszug)
-- Client→Server: `city_memory:requestZoneHeat` (Heatmap)
-- Server→Client: `city_memory:receiveZoneHeat` (Heatmap‑Daten), `city_memory:clearHeatmap`
+- Client→Server:
+  - `city_memory:requestZoneHeat` (Heatmap)
+  - `city_memory:checkPerson` (Personen-Check)
+  - `city_memory:reportCooperation` (Kooperation melden)
+  - `city_memory:reportSurrender` (Selbststellung melden)
+  - `city_memory:queryPlate` (Kennzeichen-Abfrage)
+- Server→Client:
+  - `city_memory:receiveZoneHeat` (Heatmap‑Daten)
+  - `city_memory:clearHeatmap`
+  - `city_memory:personCheckResult` (Ergebnis Personen-Check)
+  - `city_memory:playerRiskHint` (Risk-Warnung für Polizei)
+  - `city_memory:zoneWarning` (Zone-Warnung für Zivilisten)
+  - `city_memory:plateQueryResult` (Kennzeichen-Ergebnis)
 - UI‑Events (NUI) siehe `html/js/*.js` und die `RegisterNUICallback`‑Blöcke in den Client‑Skripten
 
 Hinweis: Interne Hilfsfunktionen wie `IsPoliceJob`, `IsEMSJob`, `IsDispatcherJob` kommen aus den Shared‑Utils/Config.
@@ -306,6 +395,7 @@ Bei Start validiert `server/pg.lua` die Verbindung und gibt den gewählten Modus
 ## Performance & Sicherheit
 
 - Heatmap: Persistente Blips mit Pruning (Default Gnadenfrist 60s). Intervall/Radius sinnvoll wählen; bei sehr vielen Spielern Intervall eher erhöhen.
+- Zone-Warnungen: Server prüft alle 5 Sekunden, 10 Minuten Cooldown pro Zone/Spieler
 - Server‑Cooldowns für Requests verhindern Spam
 - `Config.Debug` nur in Entwicklung aktivieren (mehr Logs)
 - Zugriffsrechte über ESX‑Jobs und `Config.MinGrades` steuern
@@ -321,7 +411,7 @@ Neon HTTP 400 bei SQL‑Requests
 - Häufige Ursachen:
   - Fremdschlüsselverletzung `player_events.identifier` → Profil existiert noch nicht; wird beim nächsten Event automatisch angelegt (ab 2.0.0+) oder manuell erstellen
   - `event_type` zu lang/ungültig (max 30, Normalisierung `[a-z0-9_-]`)
-  - Ungültiges JSON in `context` → wird als `JSONB` gespeichert; bei `nil` `NULL::jsonb`
+  - Ungültiges JSON in `context` → wird als `JSONB` gespeichert; bei `nil` leeres `{}` senden
 
 Heatmap zeigt nichts
 - `Config.ZoneHeatmap.enabled = true`?
@@ -333,11 +423,33 @@ MDT/Dispatch öffnen nicht
 - ox_lib/ox_target korrekt geladen?
 - NUI blockiert? Fokus via ESC schließen
 
+ox_target Optionen erscheinen nicht
+- ox_target installiert und gestartet?
+- Richtiger Job? (Polizei-Aktionen nur für Polizei)
+- Distanz zu nah/weit? (Personen: <3m, Fahrzeuge: <5m)
+
+Personen-Check zeigt nichts
+- Person muss ein Spieler sein (kein NPC)
+- Profil wird automatisch angelegt bei erstem Event
+
 ---
 
 ## Changelog (Kurz)
 
-2.2 (Heatmap‑Modul)
+2.4.0
+- **NEU: ox_target Personen-Interaktionen** (Überprüfen, Kooperation, Selbststellung)
+- **NEU: ox_target Fahrzeug-Interaktionen** (Kennzeichen, Fahndung)
+- **NEU: Polizei-Aktionen Untermenü** im Radial-Menu
+- **NEU: Zone-Warnungen für Zivilisten** beim Betreten heißer Zonen
+- **NEU: Personen-Check Context-Menu** mit Risk, Tendenzen, Events
+- Dynamische Menü-Namen (Notruf 911 / Leitstelle)
+- Dynamische Heatmap-Intro Titel
+
+2.3.0
+- Dynamische Namen im Radial-Menu je nach Job
+- Keyboard-Support für Intro-Modals (Enter/ESC)
+
+2.2.0 (Heatmap‑Modul)
 - Auto‑Aktivierung für Polizei, Onboarding‑Hinweis, Legende
 - Verbesserte Farb/Alpha‑Skalierung und Exports
 

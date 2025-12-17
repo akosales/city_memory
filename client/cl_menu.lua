@@ -26,7 +26,21 @@ local function UpdateJobStatus()
         isPolice = IsPoliceJob(currentJob)
         isEMS = IsEMSJob(currentJob)
         isDispatcher = IsDispatcherJob(currentJob)
-        isAdmin = playerData.group == 'admin' or playerData.group == 'superadmin'
+
+        -- Admin Check - mehrere Methoden
+        local group = playerData.group or ''
+        isAdmin = (group == 'admin' or group == 'superadmin' or group == 'god')
+
+        -- Debug
+        if Config.Debug then
+            print(('[City Memory] Job: %s | Dispatcher: %s | Police: %s | Admin: %s (group: %s)'):format(
+                currentJob or 'nil',
+                tostring(isDispatcher),
+                tostring(isPolice),
+                tostring(isAdmin),
+                group or 'nil'
+            ))
+        end
     end
 end
 
@@ -43,7 +57,9 @@ RegisterNetEvent('esx:playerLoaded', function(xPlayer)
     isPolice = IsPoliceJob(currentJob)
     isEMS = IsEMSJob(currentJob)
     isDispatcher = IsDispatcherJob(currentJob)
-    isAdmin = xPlayer.group == 'admin' or xPlayer.group == 'superadmin'
+
+    local group = xPlayer.group or ''
+    isAdmin = (group == 'admin' or group == 'superadmin' or group == 'god')
 
     -- Radial Menu aktualisieren
     UpdateRadialMenu()
@@ -188,6 +204,19 @@ function OpenCityMemoryMenu()
         }
     end
 
+    -- 🚔 Polizei-Aktionen - nur für Polizei
+    if isPolice then
+        options[#options + 1] = {
+            title = '🚔 Polizei-Aktionen',
+            description = 'Schnellzugriff für Einsätze',
+            icon = 'shield-halved',
+            iconColor = '#1976D2',
+            onSelect = function()
+                OpenPoliceActionsMenu()
+            end
+        }
+    end
+
     -- Context Menu anzeigen
     lib.registerContext({
         id = 'city_memory_context',
@@ -303,6 +332,85 @@ end)
 exports('SetHeatmapActive', function(state)
     heatmapActive = state
 end)
+
+-- ================================================
+-- Polizei-Aktionen Untermenü
+-- ================================================
+
+function OpenPoliceActionsMenu()
+    local options = {
+        {
+            title = '🔍 Nächste Person überprüfen',
+            description = 'Schau eine Person an und nutze ox_target',
+            icon = 'id-card',
+            disabled = true
+        },
+        {
+            title = '🚗 Kennzeichen eingeben',
+            description = 'Manuell ein Kennzeichen abfragen',
+            icon = 'car',
+            onSelect = function()
+                local input = lib.inputDialog('Kennzeichen-Abfrage', {
+                    { type = 'input', label = 'Kennzeichen', placeholder = 'z.B. LS 1234 AB', required = true }
+                })
+
+                if input and input[1] then
+                    TriggerServerEvent('city_memory:queryPlate', input[1])
+                end
+            end
+        },
+        {
+            title = '📋 Neue Fahndung',
+            description = 'Person oder Fahrzeug zur Fahndung ausschreiben',
+            icon = 'flag',
+            onSelect = function()
+                OpenWantedDialog()
+            end
+        },
+        {
+            title = '🗺️ Hotspots anzeigen',
+            description = 'Aktuelle Brennpunkte auf der Karte',
+            icon = 'map-location-dot',
+            onSelect = function()
+                TriggerEvent('city_memory:toggleHeatmap')
+            end
+        }
+    }
+
+    lib.registerContext({
+        id = 'city_memory_police_actions',
+        title = '🚔 Polizei-Aktionen',
+        menu = 'city_memory_context',
+        options = options
+    })
+
+    lib.showContext('city_memory_police_actions')
+end
+
+function OpenWantedDialog()
+    local input = lib.inputDialog('Neue Fahndung erstellen', {
+        { type = 'select', label = 'Typ', options = {
+            { value = 'person', label = '👤 Person' },
+            { value = 'vehicle', label = '🚗 Fahrzeug' }
+        }, required = true },
+        { type = 'input', label = 'Ziel (Name / Kennzeichen)', required = true },
+        { type = 'textarea', label = 'Grund der Fahndung', required = true }
+    })
+
+    if input and input[1] and input[2] and input[3] then
+        TriggerServerEvent('mdt:createWanted', {
+            type = input[1],
+            target = input[2],
+            reason = input[3]
+        })
+
+        lib.notify({
+            title = 'Fahndung erstellt',
+            description = 'Alle Einheiten wurden informiert.',
+            type = 'success'
+        })
+    end
+end
 
 -- ================================================
 -- Command Fallback (falls jemand Commands bevorzugt)

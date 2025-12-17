@@ -204,7 +204,7 @@ exports.ox_target:addGlobalVehicle({
         end,
         canInteract = function(entity, distance, coords, name, bone)
             if not IsPoliceJob(GetPlayerJob()) then return false end
-            
+
             local model = GetEntityModel(entity)
             for _, veh in ipairs(policeVehicles) do
                 if model == GetHashKey(veh) then
@@ -223,7 +223,7 @@ exports.ox_target:addGlobalVehicle({
         end,
         canInteract = function(entity, distance, coords, name, bone)
             if not IsDispatcherJob(GetPlayerJob()) then return false end
-            
+
             local model = GetEntityModel(entity)
             for _, veh in ipairs(policeVehicles) do
                 if model == GetHashKey(veh) then
@@ -253,7 +253,7 @@ exports.ox_target:addGlobalVehicle({
         end,
         canInteract = function(entity, distance, coords, name, bone)
             if not IsEMSJob(GetPlayerJob()) then return false end
-            
+
             local model = GetEntityModel(entity)
             for _, veh in ipairs(emsVehicles) do
                 if model == GetHashKey(veh) then
@@ -303,5 +303,111 @@ if Config.Admin and Config.Admin.enabled then
         }
     })
 end
+
+-- ================================================
+-- Personen-Interaktionen (für Polizei)
+-- ================================================
+
+exports.ox_target:addGlobalPlayer({
+    {
+        name = 'cm_person_check',
+        icon = 'fa-solid fa-id-card',
+        label = 'Person überprüfen',
+        onSelect = function(data)
+            local targetServerId = GetPlayerServerId(data.entity)
+            TriggerServerEvent('city_memory:checkPerson', targetServerId)
+        end,
+        canInteract = function(entity, distance, coords, name, bone)
+            return IsPoliceJob(GetPlayerJob()) and distance < 3.0
+        end
+    },
+    {
+        name = 'cm_report_cooperate',
+        icon = 'fa-solid fa-handshake',
+        label = 'Kooperation vermerken',
+        onSelect = function(data)
+            local targetServerId = GetPlayerServerId(data.entity)
+            TriggerServerEvent('city_memory:reportCooperation', targetServerId)
+            if lib and lib.notify then
+                lib.notify({
+                    title = 'Vermerkt',
+                    description = 'Kooperatives Verhalten wurde notiert.',
+                    type = 'success',
+                    duration = 3000
+                })
+            end
+        end,
+        canInteract = function(entity, distance, coords, name, bone)
+            return IsPoliceJob(GetPlayerJob()) and distance < 3.0
+        end
+    },
+    {
+        name = 'cm_report_surrender',
+        icon = 'fa-solid fa-hands',
+        label = 'Selbststellung vermerken',
+        onSelect = function(data)
+            local targetServerId = GetPlayerServerId(data.entity)
+            TriggerServerEvent('city_memory:reportSurrender', targetServerId)
+            if lib and lib.notify then
+                lib.notify({
+                    title = 'Vermerkt',
+                    description = 'Selbststellung wurde notiert.',
+                    type = 'success',
+                    duration = 3000
+                })
+            end
+        end,
+        canInteract = function(entity, distance, coords, name, bone)
+            return IsPoliceJob(GetPlayerJob()) and distance < 3.0
+        end
+    }
+})
+
+-- ================================================
+-- Fahrzeug-Interaktionen (für Polizei)
+-- ================================================
+
+exports.ox_target:addGlobalVehicle({
+    {
+        name = 'cm_plate_check',
+        icon = 'fa-solid fa-magnifying-glass',
+        label = 'Kennzeichen abfragen',
+        onSelect = function(data)
+            local plate = GetVehicleNumberPlateText(data.entity)
+            if plate then
+                TriggerServerEvent('city_memory:queryPlate', plate)
+            end
+        end,
+        canInteract = function(entity, distance, coords, name, bone)
+            return IsPoliceJob(GetPlayerJob()) and distance < 5.0
+        end
+    },
+    {
+        name = 'cm_vehicle_flag',
+        icon = 'fa-solid fa-flag',
+        label = 'Fahrzeug zur Fahndung',
+        onSelect = function(data)
+            local plate = GetVehicleNumberPlateText(data.entity)
+            if plate then
+                -- Öffne Dialog für Grund
+                local input = lib.inputDialog('Fahrzeug zur Fahndung ausschreiben', {
+                    { type = 'input', label = 'Kennzeichen', default = plate, disabled = true },
+                    { type = 'textarea', label = 'Grund der Fahndung', required = true }
+                })
+
+                if input and input[2] then
+                    TriggerServerEvent('mdt:createWanted', {
+                        type = 'vehicle',
+                        target = plate,
+                        reason = input[2]
+                    })
+                end
+            end
+        end,
+        canInteract = function(entity, distance, coords, name, bone)
+            return IsPoliceJob(GetPlayerJob()) and distance < 5.0
+        end
+    }
+})
 
 print('^2[City Memory] ox_target Interaktionen geladen^7')

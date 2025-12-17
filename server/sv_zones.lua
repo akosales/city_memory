@@ -8,6 +8,8 @@ local ESX = exports['es_extended']:getSharedObject()
 local EventCooldowns = {}
 -- Request-Rate-Limit pro Spieler (Heatmap anfordern)
 local HeatRequestCooldown = {}
+-- Zone-Warnung Cooldown pro Spieler
+local ZoneWarningCooldown = {}
 
 -- ================================================
 -- Helper: Cooldown Check
@@ -162,6 +164,86 @@ function TriggerZoneEffects(zoneId, heat)
         end
     end
 end
+
+-- ================================================
+-- Zone-Warnung für Zivilisten
+-- ================================================
+
+local function CheckPlayerZoneWarning(source, zoneId, heat)
+    local xPlayer = ESX.GetPlayerFromId(source)
+    if not xPlayer then return end
+
+    -- Polizei bekommt keine Warnung (die haben die Heatmap)
+    if IsPoliceJob(xPlayer.job.name) then return end
+
+    -- Nur bei heißen Zonen warnen
+    if heat < 0.4 then return end
+
+    -- Cooldown prüfen (10 Minuten pro Zone pro Spieler)
+    local key = source .. ':' .. zoneId
+    local now = GetGameTimer()
+    local cooldownEnd = ZoneWarningCooldown[key]
+
+    if cooldownEnd and now < cooldownEnd then return end
+
+    -- Cooldown setzen
+    ZoneWarningCooldown[key] = now + 600000 -- 10 Minuten
+
+    -- Zone-Label holen
+    local zoneName = Config.Zones[zoneId] and Config.Zones[zoneId].label or zoneId
+
+    -- Letzte Vorfälle zählen
+    local incidents = 0
+    if ZoneCache[zoneId] then
+        incidents = ZoneCache[zoneId].totalIncidents or 0
+    end
+
+    -- Warnung an Client senden
+    TriggerClientEvent('city_memory:zoneWarning', source, zoneId, zoneName, heat, incidents)
+end
+
+-- ================================================
+-- Spieler-Position überwachen (für Zone-Warnungen)
+-- ================================================
+
+local PlayerLastZone = {}
+
+CreateThread(function()
+    while true do
+        Wait(5000) -- Alle 5 Sekunden prüfen
+
+        local players = ESX.GetExtendedPlayers()
+
+        for _, xPlayer in pairs(players) do
+            local source = xPlayer.source
+            local ped = GetPlayerPed(source)
+
+            if ped and DoesEntityExist(ped) then
+                local coords = GetEntityCoords(ped)
+                local currentZone = GetZoneFromCoordsServer(coords)
+                local lastZone = PlayerLastZone[source]
+
+                -- Zone gewechselt?
+                if currentZone and currentZone ~= lastZone then
+                    PlayerLastZone[source] = currentZone
+
+                    -- Heat der neuen Zone prüfen
+                    local heat = GetZoneHeat(currentZone)
+                    if heat >= 0.4 then
+                        CheckPlayerZoneWarning(source, currentZone, heat)
+                    end
+                end
+            end
+        end
+    end
+end)
+
+-- Cleanup wenn Spieler disconnected
+AddEventHandler('playerDropped', function()
+    local source = source
+    PlayerLastZone[source] = nil
+    ZoneWarningCooldown[source] = nil
+end)
 
 -- ================================================
 -- Events von anderen Scripts

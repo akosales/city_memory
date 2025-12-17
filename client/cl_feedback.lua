@@ -34,14 +34,14 @@ end)
 
 RegisterNetEvent('city_memory:plateQueryResult', function(data)
     if not data then return end
-    
+
     local plate = data.plate
     local risk = data.risk
     local flagged = data.flagged
     local history = data.history
-    
+
     local message = ('Kennzeichen: %s\n'):format(plate)
-    
+
     if risk == 'high' then
         message = message .. '^1Vorsicht empfohlen^7\n'
     elseif risk == 'medium' then
@@ -51,21 +51,21 @@ RegisterNetEvent('city_memory:plateQueryResult', function(data)
     else
         message = message .. '^2Keine Einträge^7\n'
     end
-    
+
     if flagged then
         message = message .. '^1Fahrzeug ist markiert^7\n'
     end
-    
+
     if history and history.chaseCount and history.chaseCount > 0 then
         message = message .. ('Verfolgungen: %d\n'):format(history.chaseCount)
     end
-    
+
     TriggerEvent('chat:addMessage', {
         color = { 100, 150, 255 },
         multiline = true,
         args = { '[Kennzeichen-Abfrage]', message }
     })
-    
+
     PlaySoundFrontend(-1, 'NAV_UP_DOWN', 'HUD_FRONTEND_DEFAULT_SOUNDSET', false)
 end)
 
@@ -80,19 +80,19 @@ RegisterNetEvent('city_memory:zoneWarning', function(zoneId, zoneName, heatValue
     -- Cooldown prüfen
     if lastZoneWarning == zoneId then return end
     lastZoneWarning = zoneId
-    
+
     SetTimeout(ZONE_WARNING_COOLDOWN, function()
         if lastZoneWarning == zoneId then
             lastZoneWarning = nil
         end
     end)
-    
+
     -- Warnstufe bestimmen
     local level = 'low'
     local icon = '🟢'
     local title = zoneName or 'Unbekannte Zone'
     local message = ''
-    
+
     if heatValue >= 0.7 then
         level = 'high'
         icon = '🔴'
@@ -107,12 +107,12 @@ RegisterNetEvent('city_memory:zoneWarning', function(zoneId, zoneName, heatValue
         -- Keine Warnung für ruhige Zonen
         return
     end
-    
+
     -- Onboarding beim ersten Mal
     if not hasSeenZoneWarningIntro then
         hasSeenZoneWarningIntro = true
         SetResourceKvpInt('city_memory:zone_warning_intro', 1)
-        
+
         -- Erweiterte Erklärung beim ersten Mal
         SendNUIMessage({
             type = 'showZoneWarningIntro',
@@ -123,7 +123,7 @@ RegisterNetEvent('city_memory:zoneWarning', function(zoneId, zoneName, heatValue
         })
         return
     end
-    
+
     -- Normale Warnung (NUI Toast)
     SendNUIMessage({
         type = 'showZoneWarning',
@@ -133,7 +133,7 @@ RegisterNetEvent('city_memory:zoneWarning', function(zoneId, zoneName, heatValue
         message = message,
         incidents = recentIncidents or 0
     })
-    
+
     -- Auch als ox_lib Notification
     if lib and lib.notify then
         local notifyType = level == 'high' and 'error' or 'warning'
@@ -158,21 +158,21 @@ RegisterNetEvent('city_memory:zoneHint', function(zoneId, label, heatLevel)
     local key = zoneId
     if lastZoneHint == key then return end
     lastZoneHint = key
-    
+
     SetTimeout(ZONE_HINT_COOLDOWN, function()
         if lastZoneHint == key then
             lastZoneHint = nil
         end
     end)
-    
+
     local hint = nil
-    
+
     if heatLevel == 'heated' then
         hint = 'Die Stimmung hier ist angespannt.'
     elseif heatLevel == 'tense' then
         hint = 'In letzter Zeit gab es hier Vorfälle.'
     end
-    
+
     if hint then
         BeginTextCommandThefeedPost('STRING')
         AddTextComponentSubstringPlayerName(hint)
@@ -189,7 +189,7 @@ RegisterNetEvent('city_memory:emergencyHint', function(reason)
     if not hasSeenNotrufHint then
         hasSeenNotrufHint = true
         SetResourceKvpInt('city_memory:notruf_hint', 1)
-        
+
         SendNUIMessage({
             type = 'showNotrufHint',
             firstTime = true,
@@ -197,7 +197,7 @@ RegisterNetEvent('city_memory:emergencyHint', function(reason)
         })
         return
     end
-    
+
     -- Kurzer Hinweis
     if lib and lib.notify then
         lib.notify({
@@ -219,7 +219,7 @@ end)
 
 RegisterNetEvent('city_memory:hint', function(message, hintType)
     hintType = hintType or 'info'
-    
+
     if lib and lib.notify then
         lib.notify({
             description = message,
@@ -239,14 +239,14 @@ end)
 
 RegisterNetEvent('city_memory:playerRiskHint', function(targetId, riskLevel)
     local hint = nil
-    
+
     if riskLevel == 'high' then
         hint = 'Person ist polizeibekannt. Erhöhte Vorsicht.'
         PlaySoundFrontend(-1, 'CHECKPOINT_NORMAL', 'HUD_MINI_GAME_SOUNDSET', false)
     elseif riskLevel == 'medium' then
         hint = 'Person hat vereinzelte Einträge.'
     end
-    
+
     if hint then
         if lib and lib.notify then
             lib.notify({
@@ -265,16 +265,133 @@ RegisterNetEvent('city_memory:playerRiskHint', function(targetId, riskLevel)
 end)
 
 -- ================================================
+-- Polizei: Personen-Check Ergebnis (ox_target)
+-- ================================================
+
+RegisterNetEvent('city_memory:personCheckResult', function(data)
+    if not data then return end
+
+    -- ox_lib Context Menu mit Ergebnissen
+    if lib and lib.registerContext then
+        local profile = data.profile or {}
+        local risk = data.risk or 'unknown'
+
+        -- Risk-Farbe
+        local riskColor = '#4CAF50' -- Grün
+        local riskLabel = 'Unauffällig'
+        local riskIcon = '🟢'
+
+        if risk == 'high' then
+            riskColor = '#f44336'
+            riskLabel = 'HOHES RISIKO'
+            riskIcon = '🔴'
+        elseif risk == 'medium' then
+            riskColor = '#FF9800'
+            riskLabel = 'Auffällig'
+            riskIcon = '🟠'
+        elseif risk == 'low' then
+            riskColor = '#2196F3'
+            riskLabel = 'Vereinzelte Einträge'
+            riskIcon = '🔵'
+        end
+
+        local options = {
+            {
+                title = riskIcon .. ' ' .. riskLabel,
+                description = ('Reputation: %.0f%%'):format((profile.reputation or 0.5) * 100),
+                disabled = true
+            }
+        }
+
+        -- Tendenzen anzeigen wenn vorhanden
+        if profile.violence_tendency and profile.violence_tendency > 0.1 then
+            options[#options + 1] = {
+                title = '⚠️ Gewaltbereitschaft',
+                description = ('%.0f%% Tendenz'):format(profile.violence_tendency * 100),
+                disabled = true
+            }
+        end
+
+        if profile.flee_tendency and profile.flee_tendency > 0.1 then
+            options[#options + 1] = {
+                title = '🏃 Fluchtgefahr',
+                description = ('%.0f%% Tendenz'):format(profile.flee_tendency * 100),
+                disabled = true
+            }
+        end
+
+        if profile.cooperation and profile.cooperation > 0.6 then
+            options[#options + 1] = {
+                title = '✅ Kooperativ',
+                description = ('%.0f%% Kooperationsrate'):format(profile.cooperation * 100),
+                disabled = true
+            }
+        end
+
+        -- Letzte Events
+        if data.events and #data.events > 0 then
+            options[#options + 1] = {
+                title = '📋 Letzte Vorfälle',
+                disabled = true
+            }
+
+            for i, event in ipairs(data.events) do
+                if i <= 3 then
+                    local eventLabels = {
+                        flee_police = '🏃 Flucht vor Polizei',
+                        weapon_vs_player = '🔫 Waffengebrauch (Spieler)',
+                        weapon_vs_npc = '🔫 Waffengebrauch (NPC)',
+                        cooperate = '🤝 Kooperation',
+                        surrender = '🙌 Selbststellung',
+                        shooting = '💥 Schussabgabe',
+                        chase = '🚗 Verfolgungsjagd'
+                    }
+
+                    options[#options + 1] = {
+                        title = eventLabels[event.event_type] or event.event_type,
+                        description = event.created_at and event.created_at:sub(1, 16) or '',
+                        disabled = true
+                    }
+                end
+            end
+        end
+
+        -- Aktionen
+        options[#options + 1] = {
+            title = '🔍 Im MDT öffnen',
+            description = 'Detaillierte Akte anzeigen',
+            onSelect = function()
+                TriggerEvent('city_memory:openMDT')
+                -- TODO: Direkt zur Person navigieren
+            end
+        }
+
+        lib.registerContext({
+            id = 'city_memory_person_check',
+            title = '👤 ' .. (data.name or 'Unbekannt'),
+            options = options
+        })
+
+        lib.showContext('city_memory_person_check')
+
+        -- Sound bei hohem Risiko
+        if risk == 'high' then
+            PlaySoundFrontend(-1, 'CHECKPOINT_NORMAL', 'HUD_MINI_GAME_SOUNDSET', false)
+        end
+    end
+end)
+
+-- ================================================
 -- Debug: Zone Info
 -- ================================================
 
 RegisterNetEvent('city_memory:debugZoneInfo', function(zoneId, heat, incidents)
     if not Config.Debug then return end
-    
+
     TriggerEvent('chat:addMessage', {
         color = { 150, 150, 150 },
-        args = { 
-            '[CM Debug]', 
+        args = {
+            '[CM Debug]',
             ('Zone: %s | Heat: %.3f | Vorfälle: %d'):format(zoneId, heat, incidents)
         }
     })
@@ -290,7 +407,7 @@ RegisterCommand('cm_reset_onboarding', function()
     SetResourceKvpInt('city_memory:heatmap_intro', 0)
     hasSeenZoneWarningIntro = false
     hasSeenNotrufHint = false
-    
+
     if lib and lib.notify then
         lib.notify({
             title = 'Onboarding zurückgesetzt',

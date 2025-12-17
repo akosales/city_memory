@@ -96,12 +96,12 @@ local function ModifyReputation(identifier, eventType, impact, context)
         ]], { newRep, newVolatility, newCooperation, newViolence, newFlee, identifier })
     end
 
-    -- Event loggen (Context als JSONB casten)
-    local jsonValue = context and json.encode(context) or nil
+    -- Event loggen (Context als JSONB - IMMER gültigen JSON String senden)
+    local jsonContext = context and json.encode(context) or '{}'
     PG.insert([[
         INSERT INTO player_events (identifier, event_type, impact, context)
-        VALUES (?, ?, ?, COALESCE(?::jsonb, '{}'::jsonb))
-    ]], { identifier, normalizedEvent, reputationChange, jsonValue })
+        VALUES (?, ?, ?, ?::jsonb)
+    ]], { identifier, normalizedEvent, reputationChange, jsonContext })
 
     -- Cache invalidieren
     ProfileCache[identifier] = nil
@@ -194,7 +194,7 @@ RegisterNetEvent('city_memory:reportWeaponUseNPC', function()
     local xPlayer = ESX.GetPlayerFromId(source)
     if not xPlayer then return end
 
-    ModifyReputation(xPlayer.identifier, 'weapon_vs_npc', nil, nil)
+    ModifyReputation(xPlayer.identifier, 'weapon_vs_npc', nil, {})
 end)
 
 -- Selbststellung
@@ -208,6 +208,53 @@ RegisterNetEvent('city_memory:reportSurrender', function(playerId)
     if not xTarget then return end
 
     ModifyReputation(xTarget.identifier, 'surrender', nil, { reportedBy = xPlayer.identifier })
+end)
+
+-- ================================================
+-- Polizei: Person überprüfen (ox_target)
+-- ================================================
+
+RegisterNetEvent('city_memory:checkPerson', function(targetId)
+    local source = source
+    local xPlayer = ESX.GetPlayerFromId(source)
+    if not xPlayer then return end
+
+    -- Nur Polizei
+    if not IsPoliceJob(xPlayer.job.name) then return end
+
+    local xTarget = ESX.GetPlayerFromId(targetId)
+    if not xTarget then return end
+
+    local identifier = xTarget.identifier
+    local profile = GetPlayerProfile(identifier)
+    local risk = GetRiskLevel(identifier)
+
+    -- Letzte Events abrufen
+    local events = PG.query([[
+        SELECT event_type, impact, created_at
+        FROM player_events
+        WHERE identifier = ?
+        ORDER BY created_at DESC
+        LIMIT 5
+    ]], { identifier })
+
+    -- An Client senden
+    TriggerClientEvent('city_memory:personCheckResult', source, {
+        targetId = targetId,
+        name = xTarget.getName(),
+        identifier = identifier,
+        profile = profile,
+        risk = risk,
+        events = events or {},
+        online = true
+    })
+
+    -- Risk-Hinweis wenn gefährlich
+    if risk == 'high' or risk == 'medium' then
+        TriggerClientEvent('city_memory:playerRiskHint', source, targetId, risk)
+    end
+
+    Log('PROFILE', ('%s überprüfte %s (Risk: %s)'):format(xPlayer.getName(), xTarget.getName(), risk))
 end)
 
 -- ================================================

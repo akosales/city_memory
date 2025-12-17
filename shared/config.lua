@@ -253,38 +253,37 @@ Config.ZoneHeatmap = {
     radius = 150.0,
     interval = 30000,
     requestCooldownMs = 5000,
-    maxZones = 80,
-
-    -- Zivilisten-Zugriff & Auto-Aktivierung
-    enableForCivilians = true,
-    autoEnableForCivilians = false,
-
-    -- Persistente Blips: Gnadenfrist, bevor nicht mehr gemeldete Zonen entfernt werden
-    pruneGraceMs = 60000
+    maxZones = 80
 }
 
 -- ================================================
--- SPIELER-PROFIL EINSTELLUNGEN
+-- SPIELER-PROFIL EINSTELLUNGEN (RP-Optimiert)
 -- ================================================
 Config.PlayerProfile = {
-    defaultReputation = 0.5,
-    decayRate = 0.002,
-    maxReputation = 1.0,
-    minReputation = 0.0,
+    defaultReputation = 0.5,      -- Startwert (neutral)
+    decayRate = 0.0005,           -- Langsame Erholung (~3-4 Tage von 0 auf 0.5)
+    maxReputation = 1.0,          -- Maximum (vorbildlich)
+    minReputation = 0.0,          -- Minimum (sehr problematisch)
 }
 
 Config.ReputationModifiers = {
-    ['flee_police'] = -0.08,
-    ['cooperate'] = 0.03,
-    ['weapon_vs_player'] = -0.10,
-    ['weapon_vs_npc'] = -0.03,
-    ['peaceful_day'] = 0.01,
-    ['surrender'] = 0.05,
+    -- Negative Events (verschlechtern Reputation)
+    ['flee_police'] = -0.12,      -- Flucht vor Polizei (hart)
+    ['weapon_vs_player'] = -0.15, -- Spieler angreifen (am härtesten)
+    ['weapon_vs_npc'] = -0.02,    -- NPC angreifen (mild, passiert im RP oft)
+    ['chase'] = -0.08,            -- Verfolgungsjagd
+    ['shooting'] = -0.05,         -- Schüsse abfeuern
+
+    -- Positive Events (verbessern Reputation)
+    ['cooperate'] = 0.05,         -- Kooperation mit Polizei
+    ['surrender'] = 0.08,         -- Selbststellung (beste Option)
+    ['peaceful_day'] = 0.003,     -- Bonus für 24h ohne Vorfall (klein)
 }
 
 Config.RiskLevels = {
-    high = 0.3,
-    medium = 0.45,
+    high = 0.25,                  -- Unter 25% = High Risk (rot)
+    medium = 0.40,                -- Unter 40% = Medium Risk (orange)
+    -- Über 40% = Low Risk (grün/normal)
 }
 
 -- ================================================
