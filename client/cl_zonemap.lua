@@ -5,10 +5,13 @@
 
 local ESX = exports['es_extended']:getSharedObject()
 
-local zoneBlips = {}
+local zoneBlips = {} -- [zoneId] = { blip = handle, lastSeen = ms }
 local heatmapActive = false
 local legendVisible = false
 local updateInterval = Config.ZoneHeatmap and Config.ZoneHeatmap.interval or 30000
+local pruneGraceMs = (Config.ZoneHeatmap and Config.ZoneHeatmap.pruneGraceMs) or 60000
+local enableForCivilians = (Config.ZoneHeatmap and Config.ZoneHeatmap.enableForCivilians) ~= false
+local autoEnableForCivilians = (Config.ZoneHeatmap and Config.ZoneHeatmap.autoEnableForCivilians) or false
 
 -- Schwellenwerte
 local COP_MIN = (Config.ZoneHeatmap and Config.ZoneHeatmap.copMin) or 0.10
@@ -39,9 +42,13 @@ local function UpdateJobStatus()
             AutoEnableForPolice()
         end
 
-        -- Auto-Deaktivierung wenn Spieler kein Polizist mehr ist
+        -- Wechsel von Polizei zu Zivilist: optionales Verhalten
         if not isPolice and wasPolice then
-            AutoDisableForCivilian()
+            if autoEnableForCivilians or enableForCivilians then
+                AutoEnableForCivilian()
+            else
+                AutoDisableForCivilian()
+            end
         end
     end
 end
@@ -63,6 +70,8 @@ RegisterNetEvent('esx:playerLoaded', function(xPlayer)
     SetTimeout(2000, function()
         if isPolice then
             AutoEnableForPolice()
+        elseif autoEnableForCivilians and enableForCivilians then
+            AutoEnableForCivilian()
         end
     end)
 end)
@@ -119,6 +128,25 @@ function AutoDisableForCivilian()
     ShowLegend(false)
 end
 
+function AutoEnableForCivilian()
+    if not enableForCivilians then return end
+    if heatmapActive then return end
+
+    heatmapActive = true
+    legendVisible = true
+    TriggerServerEvent('city_memory:requestZoneHeat')
+    ShowLegend(true)
+
+    if lib and lib.notify then
+        lib.notify({
+            title = 'Heatmap aktiv',
+            description = 'Hotspots für Bürger werden angezeigt',
+            type = 'inform',
+            duration = 3000
+        })
+    end
+end
+
 -- ================================================
 -- Onboarding: Erster Heatmap Hinweis
 -- ================================================
@@ -147,26 +175,27 @@ end
 -- Blip Helpers
 -- ================================================
 
-local function CreateZoneBlip(zoneId, coords, heat)
-    if not coords then return nil end
-
-    local blip = AddBlipForRadius(coords.x + 0.0, coords.y + 0.0, coords.z + 0.0, RADIUS)
-
+local function ApplyBlipStyle(blip, heat)
     local color = 2 -- Grün
     if heat >= 0.7 then
         color = 1 -- Rot
     elseif heat >= 0.4 then
         color = 17 -- Orange
     end
-
     SetBlipColour(blip, color)
     SetBlipAlpha(blip, math.floor(math.min(1.0, math.max(0.0, heat)) * 180) + 40)
+end
 
+local function CreateZoneBlip(zoneId, coords, heat)
+    if not coords then return nil end
+    local blip = AddBlipForRadius(coords.x + 0.0, coords.y + 0.0, coords.z + 0.0, RADIUS)
+    ApplyBlipStyle(blip, heat)
     return blip
 end
 
 local function ClearZoneBlips()
-    for _, blip in pairs(zoneBlips) do
+    for _, entry in pairs(zoneBlips) do
+        local blip = entry and entry.blip or entry -- backward compatibility
         if blip and DoesBlipExist(blip) then
             RemoveBlip(blip)
         end
@@ -179,21 +208,38 @@ end
 -- ================================================
 
 local function UpdateHeatmap(zones)
-    ClearZoneBlips()
-
     if not heatmapActive then return end
     if type(zones) ~= 'table' then return end
 
     local minHeat = isPolice and COP_MIN or CIV_MIN
+    local now = GetGameTimer()
 
     for zoneId, data in pairs(zones) do
         local heat = tonumber(data and data.heat) or 0.0
         local coords = data and data.coords
         if coords and heat and heat >= minHeat then
-            local blip = CreateZoneBlip(zoneId, coords, heat)
-            if blip then
-                zoneBlips[zoneId] = blip
+            local entry = zoneBlips[zoneId]
+            if entry and entry.blip and DoesBlipExist(entry.blip) then
+                -- Update bestehenden Blip
+                ApplyBlipStyle(entry.blip, heat)
+                entry.lastSeen = now
+            else
+                -- Neu erstellen
+                local blip = CreateZoneBlip(zoneId, coords, heat)
+                if blip then
+                    zoneBlips[zoneId] = { blip = blip, lastSeen = now }
+                end
             end
+        end
+    end
+
+    -- Pruning: entferne Blips, die seit Gnadenfrist nicht mehr gesehen wurden
+    for zId, entry in pairs(zoneBlips) do
+        local last = entry.lastSeen or 0
+        if now - last > pruneGraceMs then
+            local blip = entry.blip or entry
+            if blip and DoesBlipExist(blip) then RemoveBlip(blip) end
+            zoneBlips[zId] = nil
         end
     end
 end
@@ -203,6 +249,13 @@ end
 -- ================================================
 
 function ToggleHeatmap()
+    if (not isPolice) and (not enableForCivilians) then
+        if lib and lib.notify then
+            lib.notify({ title = 'Heatmap', description = 'Für Zivilisten deaktiviert', type = 'error', duration = 2500 })
+        end
+        return
+    end
+
     heatmapActive = not heatmapActive
     legendVisible = heatmapActive
 

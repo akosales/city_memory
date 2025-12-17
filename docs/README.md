@@ -116,7 +116,7 @@ Wichtige Blöcke (Auszug):
   - `Config.EventCooldowns`, `Config.HeatModifiers`
 
 - Heatmap (Zonen‑Visualisierung)
-  - `Config.ZoneHeatmap.enabled`, `copMin`, `civMin`, `radius`, `interval`, `requestCooldownMs`
+  - `Config.ZoneHeatmap.enabled`, `copMin`, `civMin`, `radius`, `interval`, `requestCooldownMs`, `enableForCivilians`, `autoEnableForCivilians`, `pruneGraceMs`
 
 - Spielerprofil & Reputation
   - `Config.PlayerProfile`, `Config.ReputationModifiers`, `Config.RiskLevels`
@@ -153,6 +153,58 @@ Tipp: Lies die Datei `shared/config.lua` einmal komplett — viele Optionen sind
 
 ---
 
+## Persistente Spielerprofile: Reputation & Risk‑Level
+
+Spielerprofile werden serverseitig in der Datenbank persistiert und kontinuierlich aktualisiert. Sie bilden die Grundlage für polizeiliche Einschätzungen, das MDT und bestimmte Spielmechaniken.
+
+- Speicherung: `server/sv_profiles.lua` (Profile & Events), Daten liegen in Tabellen gemäß `sql/schema.sql`.
+- Lebenszyklus: Profile werden beim ersten relevanten Event automatisch angelegt.
+- Zugriff: MDT, Admin‑Dashboard und Server‑Exports (siehe API‑Abschnitt).
+
+### Begriffe
+- Reputation (0.0–1.0): Laufende Einschätzung des Verhaltens eines Spielers. 1.0 = vorbildlich, 0.0 = sehr problematisch.
+- Risk‑Score (abgeleitet): Wird aus Reputation und letzten Ereignissen hergeleitet, in Stufen (hoch/mittel/niedrig) klassifiziert.
+
+### Initialwerte & Grenzen
+- Startwert: `Config.PlayerProfile.defaultReputation` (Default 0.5)
+- Grenzen: `minReputation`/`maxReputation` (0.0–1.0)
+
+### Aktualisierung der Reputation
+Reputation ändert sich durch Ereignisse und passives Decay:
+
+- Ereignisse: Jedes registrierte Event hat einen Modifier (`Config.ReputationModifiers`). Beispiele:
+  - `flee_police = -0.08`
+  - `weapon_vs_player = -0.10`
+  - `cooperate = +0.03`
+  - `surrender = +0.05`
+- Server ruft bei Vorkommnissen z. B. `RegisterPlayerEvent(identifier, eventType, impact?, context?)` auf:
+  - `impact` (optional) kann zusätzliche Gewichtung sein; fehlt er, nutzt der Server den vordefinierten Modifier.
+  - `context` wird als `JSONB` gespeichert (Beweise, Orte, Beteiligte).
+- Passives Decay/Erholung: In regelmäßigen Intervallen wird Reputation leicht Richtung neutral/positiv angepasst, konfiguriert über `Config.PlayerProfile.decayRate`.
+
+Pseudologik (vereinfacht):
+```
+newRep = clamp(oldRep + modifier + impact, minReputation, maxReputation)
+// Zusätzlich periodische kleine Erholung: +decayRate
+```
+
+### Risk‑Level
+Aus Reputation wird ein einfaches Risikoniveau abgeleitet. Schwellen:
+
+- `Config.RiskLevels.high` (Default 0.30): Darunter gilt der Spieler als „High‑Risk“.
+- `Config.RiskLevels.medium` (Default 0.45): Darunter, aber über „high“, gilt „Medium“.
+- Alles darüber: „Low“/„Normal“.
+
+Exports (Server):
+- `GetPlayerProfile(identifier)` → vollständige Profildaten
+- `GetRiskLevel(identifier)` → `"high"|"medium"|"low"`
+- `IsHighRisk(identifier)` → bool
+- `RegisterPlayerEvent(identifier, eventType, impact?, context?)`
+
+Hinweis: Fahrzeuge besitzen analoge Konzepte in `server/sv_vehicles.lua` (Historie, Flagging, Risiko), die im MDT sichtbar sind.
+
+---
+
 ## Nutzung im Spiel
 
 ### Notruf & Dispatch
@@ -167,8 +219,10 @@ Tipp: Lies die Datei `shared/config.lua` einmal komplett — viele Optionen sind
 - Dateien: `client/cl_mdt.lua`, `server/sv_mdt.lua`, `server/sv_profiles.lua`, `server/sv_vehicles.lua`, NUI `html/js/mdt.js`
 
 ### Heatmap (Zonen)
+- Persistente Blips: Zonen‑Blips bleiben bestehen und werden in‑place aktualisiert (kein Flackern)
+- Pruning: Zonen, die nicht mehr gemeldet werden, werden nach Gnadenfrist entfernt (Default 60s)
 - Auto‑Aktivierung für Polizei bei Dienstantritt
-- Zivilisten optional via `/heatmap`
+- Zivilisten optional via `/heatmap` (konfigurierbar) und optional auto‑aktivierbar
 - Farben: Grün < 0.4, Orange ≥ 0.4, Rot ≥ 0.7; Transparenz skaliert mit Heat
 - Intervall standardmäßig 30s; Serverseitiges Rate‑Limit 5s pro Spieler
 - Dateien: `client/cl_zonemap.lua`, `server/sv_zones.lua`, NUI `html/js/heatmap.js`
@@ -251,7 +305,7 @@ Bei Start validiert `server/pg.lua` die Verbindung und gibt den gewählten Modus
 
 ## Performance & Sicherheit
 
-- Heatmap: Blips werden pro Update bereinigt; Intervall/Radius sinnvoll wählen
+- Heatmap: Persistente Blips mit Pruning (Default Gnadenfrist 60s). Intervall/Radius sinnvoll wählen; bei sehr vielen Spielern Intervall eher erhöhen.
 - Server‑Cooldowns für Requests verhindern Spam
 - `Config.Debug` nur in Entwicklung aktivieren (mehr Logs)
 - Zugriffsrechte über ESX‑Jobs und `Config.MinGrades` steuern
@@ -297,7 +351,7 @@ MDT/Dispatch öffnen nicht
 
 ## Lizenz & Credits
 
-- Autor: GrandRP Dev Team
+- Autor: Andreas Konopka
 - Abhängigkeiten: es_extended, ox_lib, ox_target
 - Lizenz: Nutzung gemäß Server‑Richtlinien; prüfe ggf. interne Vorgaben. Externe Bibliotheken unter deren jeweiliger Lizenz.
 

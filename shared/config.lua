@@ -12,15 +12,15 @@ Config.PersistentLogs = true
 Config.Menu = {
     -- Radial Menu aktivieren (benötigt ox_lib)
     useRadialMenu = true,
-    
+
     -- ox_target Interaktionen aktivieren (benötigt ox_target)
     useOxTarget = true,
-    
+
     -- Optionaler Keybind für schnellen Zugriff aufs Menü
     -- Wenn false, nur über Radial Menu oder Commands erreichbar
     enableKeybind = false,
     keybind = 'F5',  -- Nur wenn enableKeybind = true
-    
+
     -- Commands immer verfügbar:
     -- /citymemory oder /cm - Hauptmenü
     -- /notruf - Notruf direkt
@@ -253,7 +253,14 @@ Config.ZoneHeatmap = {
     radius = 150.0,
     interval = 30000,
     requestCooldownMs = 5000,
-    maxZones = 80
+    maxZones = 80,
+
+    -- Zivilisten-Zugriff & Auto-Aktivierung
+    enableForCivilians = true,
+    autoEnableForCivilians = false,
+
+    -- Persistente Blips: Gnadenfrist, bevor nicht mehr gemeldete Zonen entfernt werden
+    pruneGraceMs = 60000
 }
 
 -- ================================================
@@ -354,17 +361,17 @@ Config.TargetLocations = {
         { coords = vec3(1853.18, 3686.63, 34.27), label = 'Sandy Shores' },
         { coords = vec3(-448.22, 6012.85, 31.72), label = 'Paleto Bay' },
     },
-    
+
     -- Dispatch Terminals
     dispatch = {
         { coords = vec3(441.16, -979.43, 30.69), label = 'Mission Row Leitstelle' },
     },
-    
+
     -- EMS Terminals
     ems = {
         { coords = vec3(311.67, -592.76, 43.29), label = 'Pillbox Hospital' },
     },
-    
+
     -- Öffentliche Telefone
     phones = {
         vec3(232.28, -899.35, 30.09),
