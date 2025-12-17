@@ -1,6 +1,14 @@
 -- ================================================
 -- City Memory System - Client Feedback
+-- v2.2 - Zone-Warnungen & Onboarding für Zivilisten
 -- ================================================
+
+-- ================================================
+-- Onboarding Flags (persistent via KVP)
+-- ================================================
+
+local hasSeenZoneWarningIntro = GetResourceKvpInt('city_memory:zone_warning_intro') == 1
+local hasSeenNotrufHint = GetResourceKvpInt('city_memory:notruf_hint') == 1
 
 -- ================================================
 -- Sound abspielen
@@ -15,6 +23,8 @@ RegisterNetEvent('city_memory:playSound', function(soundType)
         PlaySoundFrontend(-1, 'ERROR', 'HUD_FRONTEND_DEFAULT_SOUNDSET', false)
     elseif soundType == 'success' then
         PlaySoundFrontend(-1, 'MEDAL_UP', 'HUD_MINI_GAME_SOUNDSET', false)
+    elseif soundType == 'danger' then
+        PlaySoundFrontend(-1, 'FLIGHT_SCHOOL_LESSON_FAILED', 'HUD_AWARDS', false)
     end
 end)
 
@@ -60,11 +70,89 @@ RegisterNetEvent('city_memory:plateQueryResult', function(data)
 end)
 
 -- ================================================
--- Zone-Hinweis beim Betreten
+-- Zone-Warnung beim Betreten (für Zivilisten)
+-- ================================================
+
+local lastZoneWarning = nil
+local ZONE_WARNING_COOLDOWN = 600000 -- 10 Minuten pro Zone
+
+RegisterNetEvent('city_memory:zoneWarning', function(zoneId, zoneName, heatValue, recentIncidents)
+    -- Cooldown prüfen
+    if lastZoneWarning == zoneId then return end
+    lastZoneWarning = zoneId
+    
+    SetTimeout(ZONE_WARNING_COOLDOWN, function()
+        if lastZoneWarning == zoneId then
+            lastZoneWarning = nil
+        end
+    end)
+    
+    -- Warnstufe bestimmen
+    local level = 'low'
+    local icon = '🟢'
+    local title = zoneName or 'Unbekannte Zone'
+    local message = ''
+    
+    if heatValue >= 0.7 then
+        level = 'high'
+        icon = '🔴'
+        message = 'Gefährliche Gegend! Hier passiert viel Kriminalität.'
+        PlaySoundFrontend(-1, 'FLIGHT_SCHOOL_LESSON_FAILED', 'HUD_AWARDS', false)
+    elseif heatValue >= 0.4 then
+        level = 'medium'
+        icon = '🟠'
+        message = 'Vorsicht! Erhöhte Kriminalität in dieser Gegend.'
+        PlaySoundFrontend(-1, 'ERROR', 'HUD_FRONTEND_DEFAULT_SOUNDSET', false)
+    else
+        -- Keine Warnung für ruhige Zonen
+        return
+    end
+    
+    -- Onboarding beim ersten Mal
+    if not hasSeenZoneWarningIntro then
+        hasSeenZoneWarningIntro = true
+        SetResourceKvpInt('city_memory:zone_warning_intro', 1)
+        
+        -- Erweiterte Erklärung beim ersten Mal
+        SendNUIMessage({
+            type = 'showZoneWarningIntro',
+            zoneName = title,
+            level = level,
+            message = message,
+            incidents = recentIncidents or 0
+        })
+        return
+    end
+    
+    -- Normale Warnung (NUI Toast)
+    SendNUIMessage({
+        type = 'showZoneWarning',
+        zoneName = title,
+        level = level,
+        icon = icon,
+        message = message,
+        incidents = recentIncidents or 0
+    })
+    
+    -- Auch als ox_lib Notification
+    if lib and lib.notify then
+        local notifyType = level == 'high' and 'error' or 'warning'
+        lib.notify({
+            title = icon .. ' ' .. title,
+            description = message,
+            type = notifyType,
+            duration = 5000,
+            position = 'top'
+        })
+    end
+end)
+
+-- ================================================
+-- Zone-Hinweis (subtiler, für alle Levels)
 -- ================================================
 
 local lastZoneHint = nil
-local ZONE_HINT_COOLDOWN = 300000
+local ZONE_HINT_COOLDOWN = 300000 -- 5 Minuten
 
 RegisterNetEvent('city_memory:zoneHint', function(zoneId, label, heatLevel)
     local key = zoneId
@@ -93,15 +181,56 @@ RegisterNetEvent('city_memory:zoneHint', function(zoneId, label, heatLevel)
 end)
 
 -- ================================================
+-- Notruf-Hinweis nach Vorfall
+-- ================================================
+
+RegisterNetEvent('city_memory:emergencyHint', function(reason)
+    -- Nur beim ersten Mal ausführliche Erklärung
+    if not hasSeenNotrufHint then
+        hasSeenNotrufHint = true
+        SetResourceKvpInt('city_memory:notruf_hint', 1)
+        
+        SendNUIMessage({
+            type = 'showNotrufHint',
+            firstTime = true,
+            reason = reason
+        })
+        return
+    end
+    
+    -- Kurzer Hinweis
+    if lib and lib.notify then
+        lib.notify({
+            title = '📞 Notruf verfügbar',
+            description = 'Nutze /notruf oder das City Memory Menü',
+            type = 'inform',
+            duration = 5000
+        })
+    else
+        BeginTextCommandThefeedPost('STRING')
+        AddTextComponentSubstringPlayerName('Notruf: /notruf oder City Memory Menü')
+        EndTextCommandThefeedPostTicker(false, false)
+    end
+end)
+
+-- ================================================
 -- Allgemeine Hinweise
 -- ================================================
 
 RegisterNetEvent('city_memory:hint', function(message, hintType)
     hintType = hintType or 'info'
     
-    BeginTextCommandThefeedPost('STRING')
-    AddTextComponentSubstringPlayerName(message)
-    EndTextCommandThefeedPostTicker(false, false)
+    if lib and lib.notify then
+        lib.notify({
+            description = message,
+            type = hintType == 'warning' and 'warning' or 'inform',
+            duration = 4000
+        })
+    else
+        BeginTextCommandThefeedPost('STRING')
+        AddTextComponentSubstringPlayerName(message)
+        EndTextCommandThefeedPostTicker(false, false)
+    end
 end)
 
 -- ================================================
@@ -119,10 +248,19 @@ RegisterNetEvent('city_memory:playerRiskHint', function(targetId, riskLevel)
     end
     
     if hint then
-        TriggerEvent('chat:addMessage', {
-            color = { 255, 200, 100 },
-            args = { '[Einsatzhinweis]', hint }
-        })
+        if lib and lib.notify then
+            lib.notify({
+                title = '⚠️ Einsatzhinweis',
+                description = hint,
+                type = riskLevel == 'high' and 'error' or 'warning',
+                duration = 5000
+            })
+        else
+            TriggerEvent('chat:addMessage', {
+                color = { 255, 200, 100 },
+                args = { '[Einsatzhinweis]', hint }
+            })
+        end
     end
 end)
 
@@ -131,6 +269,8 @@ end)
 -- ================================================
 
 RegisterNetEvent('city_memory:debugZoneInfo', function(zoneId, heat, incidents)
+    if not Config.Debug then return end
+    
     TriggerEvent('chat:addMessage', {
         color = { 150, 150, 150 },
         args = { 
@@ -139,3 +279,25 @@ RegisterNetEvent('city_memory:debugZoneInfo', function(zoneId, heat, incidents)
         }
     })
 end)
+
+-- ================================================
+-- Reset Onboarding (für Tests)
+-- ================================================
+
+RegisterCommand('cm_reset_onboarding', function()
+    SetResourceKvpInt('city_memory:zone_warning_intro', 0)
+    SetResourceKvpInt('city_memory:notruf_hint', 0)
+    SetResourceKvpInt('city_memory:heatmap_intro', 0)
+    hasSeenZoneWarningIntro = false
+    hasSeenNotrufHint = false
+    
+    if lib and lib.notify then
+        lib.notify({
+            title = 'Onboarding zurückgesetzt',
+            description = 'Alle Einführungs-Hinweise werden erneut angezeigt.',
+            type = 'success'
+        })
+    end
+end, false)
+
+print('^2[City Memory] Feedback System v2.2 geladen^7')

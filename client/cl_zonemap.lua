@@ -1,15 +1,16 @@
 -- ================================================
 -- City Memory System - Zonen-Visualisierung (Heatmap)
--- Zeigt Heat-Level als farbige Radius-Blips auf der Karte
+-- v2.2 - Auto-Aktivierung für Polizei & Legende
 -- ================================================
 
 local ESX = exports['es_extended']:getSharedObject()
 
 local zoneBlips = {}
-local showHeatmap = false
-local updateInterval = 30000 -- 30s
+local heatmapActive = false
+local legendVisible = false
+local updateInterval = Config.ZoneHeatmap and Config.ZoneHeatmap.interval or 30000
 
--- Konfigurierbare Schwellen (Fallback, falls nicht in Config gesetzt)
+-- Schwellenwerte
 local COP_MIN = (Config.ZoneHeatmap and Config.ZoneHeatmap.copMin) or 0.10
 local CIV_MIN = (Config.ZoneHeatmap and Config.ZoneHeatmap.civMin) or 0.50
 local RADIUS  = (Config.ZoneHeatmap and Config.ZoneHeatmap.radius) or 150.0
@@ -17,27 +18,130 @@ local RADIUS  = (Config.ZoneHeatmap and Config.ZoneHeatmap.radius) or 150.0
 -- Job-Status
 local currentJob = nil
 local isPolice = false
+local wasPolice = false
+
+-- Onboarding Flag (persistent via KVP)
+local hasSeenHeatmapIntro = GetResourceKvpInt('city_memory:heatmap_intro') == 1
+
+-- ================================================
+-- Job Status Tracking
+-- ================================================
+
+local function UpdateJobStatus()
+    local playerData = ESX.GetPlayerData()
+    if playerData and playerData.job then
+        currentJob = playerData.job.name
+        wasPolice = isPolice
+        isPolice = IsPoliceJob(currentJob)
+
+        -- Auto-Aktivierung wenn Spieler Polizist wird
+        if isPolice and not wasPolice then
+            AutoEnableForPolice()
+        end
+
+        -- Auto-Deaktivierung wenn Spieler kein Polizist mehr ist
+        if not isPolice and wasPolice then
+            AutoDisableForCivilian()
+        end
+    end
+end
 
 CreateThread(function()
+    Wait(3000)
+    UpdateJobStatus()
+
     while true do
         Wait(2000)
-        local playerData = ESX.GetPlayerData()
-        if playerData and playerData.job then
-            currentJob = playerData.job.name
-            isPolice = IsPoliceJob(currentJob)
-        end
+        UpdateJobStatus()
     end
 end)
 
 RegisterNetEvent('esx:playerLoaded', function(xPlayer)
     currentJob = xPlayer.job.name
     isPolice = IsPoliceJob(currentJob)
+
+    SetTimeout(2000, function()
+        if isPolice then
+            AutoEnableForPolice()
+        end
+    end)
 end)
 
 RegisterNetEvent('esx:setJob', function(job)
     currentJob = job.name
+    wasPolice = isPolice
     isPolice = IsPoliceJob(currentJob)
+
+    if isPolice and not wasPolice then
+        AutoEnableForPolice()
+    elseif not isPolice and wasPolice then
+        AutoDisableForCivilian()
+    end
 end)
+
+-- ================================================
+-- Auto-Aktivierung für Polizei
+-- ================================================
+
+function AutoEnableForPolice()
+    if heatmapActive then return end
+
+    heatmapActive = true
+    legendVisible = true
+
+    TriggerServerEvent('city_memory:requestZoneHeat')
+    ShowLegend(true)
+
+    -- Onboarding (nur einmal pro Spieler)
+    if not hasSeenHeatmapIntro then
+        hasSeenHeatmapIntro = true
+        SetResourceKvpInt('city_memory:heatmap_intro', 1)
+
+        SetTimeout(1500, function()
+            ShowHeatmapIntro()
+        end)
+    else
+        if lib and lib.notify then
+            lib.notify({
+                title = 'Heatmap aktiv',
+                description = 'Kriminalitäts-Hotspots werden angezeigt',
+                type = 'inform',
+                duration = 3000
+            })
+        end
+    end
+end
+
+function AutoDisableForCivilian()
+    heatmapActive = false
+    legendVisible = false
+    ClearZoneBlips()
+    ShowLegend(false)
+end
+
+-- ================================================
+-- Onboarding: Erster Heatmap Hinweis
+-- ================================================
+
+function ShowHeatmapIntro()
+    SendNUIMessage({
+        type = 'showHeatmapIntro',
+        isPolice = isPolice
+    })
+end
+
+-- ================================================
+-- Legende anzeigen/verstecken
+-- ================================================
+
+function ShowLegend(show)
+    legendVisible = show
+    SendNUIMessage({
+        type = 'toggleHeatmapLegend',
+        show = show,
+        isPolice = isPolice
+    })
+end
 
 -- ================================================
 -- Blip Helpers
@@ -48,8 +152,7 @@ local function CreateZoneBlip(zoneId, coords, heat)
 
     local blip = AddBlipForRadius(coords.x + 0.0, coords.y + 0.0, coords.z + 0.0, RADIUS)
 
-    -- Farbe basierend auf Heat: Grün (2) < Orange (17) < Rot (1)
-    local color = 2 -- Grün default
+    local color = 2 -- Grün
     if heat >= 0.7 then
         color = 1 -- Rot
     elseif heat >= 0.4 then
@@ -57,7 +160,8 @@ local function CreateZoneBlip(zoneId, coords, heat)
     end
 
     SetBlipColour(blip, color)
-    SetBlipAlpha(blip, math.floor(math.min(1.0, math.max(0.0, heat)) * 180) + 40) -- 40-220
+    SetBlipAlpha(blip, math.floor(math.min(1.0, math.max(0.0, heat)) * 180) + 40)
+
     return blip
 end
 
@@ -71,12 +175,13 @@ local function ClearZoneBlips()
 end
 
 -- ================================================
--- Heatmap Update & Filter
+-- Heatmap Update
 -- ================================================
 
 local function UpdateHeatmap(zones)
     ClearZoneBlips()
-    if not showHeatmap then return end
+
+    if not heatmapActive then return end
     if type(zones) ~= 'table' then return end
 
     local minHeat = isPolice and COP_MIN or CIV_MIN
@@ -84,7 +189,7 @@ local function UpdateHeatmap(zones)
     for zoneId, data in pairs(zones) do
         local heat = tonumber(data and data.heat) or 0.0
         local coords = data and data.coords
-        if coords and heat and heat >= (minHeat or 0.1) then
+        if coords and heat and heat >= minHeat then
             local blip = CreateZoneBlip(zoneId, coords, heat)
             if blip then
                 zoneBlips[zoneId] = blip
@@ -94,42 +199,113 @@ local function UpdateHeatmap(zones)
 end
 
 -- ================================================
--- Toggle Command/Keybind
+-- Manuelles Toggle (über Menü/Command)
 -- ================================================
 
-RegisterCommand('heatmap', function()
-    showHeatmap = not showHeatmap
+function ToggleHeatmap()
+    heatmapActive = not heatmapActive
+    legendVisible = heatmapActive
 
-    if showHeatmap then
+    if heatmapActive then
         TriggerServerEvent('city_memory:requestZoneHeat')
-        SendNUIMessage({ type = 'showNotification', title = '~g~Heatmap aktiviert', message = isPolice and 'Alle Hotspots werden angezeigt.' or 'Nur starke Hotspots werden angezeigt.' })
+        ShowLegend(true)
+
+        if lib and lib.notify then
+            lib.notify({
+                title = 'Heatmap aktiviert',
+                description = isPolice and 'Alle Hotspots werden angezeigt' or 'Starke Hotspots werden angezeigt',
+                type = 'success',
+                duration = 3000
+            })
+        end
     else
         ClearZoneBlips()
-        SendNUIMessage({ type = 'showNotification', title = '~r~Heatmap deaktiviert', message = '' })
+        ShowLegend(false)
+
+        if lib and lib.notify then
+            lib.notify({
+                title = 'Heatmap deaktiviert',
+                description = 'Hotspots ausgeblendet',
+                type = 'inform',
+                duration = 3000
+            })
+        end
     end
-end, false)
+end
 
--- Standardbelegung F8 (kann später in Config verschoben werden)
-RegisterKeyMapping('heatmap', 'Zone Heatmap an/aus', 'keyboard', 'F8')
+-- ================================================
+-- Events
+-- ================================================
 
--- Serverseitige Zone-Daten empfangen
+RegisterNetEvent('city_memory:toggleHeatmap', function()
+    ToggleHeatmap()
+end)
+
+RegisterNetEvent('city_memory:clearHeatmap', function()
+    heatmapActive = false
+    legendVisible = false
+    ClearZoneBlips()
+    ShowLegend(false)
+end)
+
 RegisterNetEvent('city_memory:receiveZoneHeat', function(zones)
     UpdateHeatmap(zones)
 end)
 
--- Auto-Update wenn aktiv
+-- ================================================
+-- Exports
+-- ================================================
+
+exports('IsHeatmapActive', function()
+    return heatmapActive
+end)
+
+exports('SetHeatmapActive', function(state)
+    if state and not heatmapActive then
+        heatmapActive = true
+        legendVisible = true
+        TriggerServerEvent('city_memory:requestZoneHeat')
+        ShowLegend(true)
+    elseif not state and heatmapActive then
+        heatmapActive = false
+        legendVisible = false
+        ClearZoneBlips()
+        ShowLegend(false)
+    end
+end)
+
+exports('ToggleHeatmap', ToggleHeatmap)
+exports('ClearHeatmap', ClearZoneBlips)
+
+exports('RefreshHeatmap', function()
+    if heatmapActive then
+        TriggerServerEvent('city_memory:requestZoneHeat')
+    end
+end)
+
+-- ================================================
+-- Auto-Update Loop
+-- ================================================
+
 CreateThread(function()
     while true do
         Wait(updateInterval)
-        if showHeatmap then
+
+        if heatmapActive then
             TriggerServerEvent('city_memory:requestZoneHeat')
         end
     end
 end)
 
--- Aufräumen bei Resource-Stop
+-- ================================================
+-- Cleanup
+-- ================================================
+
 AddEventHandler('onResourceStop', function(res)
     if res == GetCurrentResourceName() then
         ClearZoneBlips()
+        ShowLegend(false)
     end
 end)
+
+print('^2[City Memory] Heatmap System v2.2 geladen^7')

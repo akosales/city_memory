@@ -1,6 +1,7 @@
 -- ================================================
 -- City Memory System - MDT & Admin Client
 -- Mobile Data Terminal & Admin Dashboard
+-- HINWEIS: Keybinds wurden nach cl_menu.lua verschoben
 -- ================================================
 
 local ESX = exports['es_extended']:getSharedObject()
@@ -19,7 +20,6 @@ local isAdmin = false
 CreateThread(function()
     while true do
         Wait(2000)
-
         local playerData = ESX.GetPlayerData()
         if playerData and playerData.job then
             currentJob = playerData.job.name
@@ -44,74 +44,31 @@ RegisterNetEvent('esx:setJob', function(job)
 end)
 
 -- ================================================
--- MDT Keybind (F6)
--- ================================================
-
-RegisterCommand('openMDT', function()
-    if not isPolice then
-        ShowNotification('~r~Keine Berechtigung', 'Du bist kein Polizist.')
-        return
-    end
-    if isMDTOpen or isAdminOpen then return end
-
-    OpenMDT()
-end, false)
-RegisterKeyMapping('openMDT', 'MDT öffnen (Polizei)', 'keyboard', Config.Keys.openMDT or 'F6')
-
--- ================================================
--- Admin Dashboard Keybind (F7)
--- ================================================
-
-RegisterCommand('openAdminDashboard', function()
-    if not isAdmin then
-        ShowNotification('~r~Keine Berechtigung', 'Du bist kein Admin.')
-        return
-    end
-    if isMDTOpen or isAdminOpen then return end
-
-    OpenAdminDashboard()
-end, false)
-RegisterKeyMapping('openAdminDashboard', 'Admin Dashboard öffnen', 'keyboard', Config.Keys.openAdmin or 'F7')
-
--- ================================================
--- MDT öffnen
+-- UI Funktionen (werden von cl_menu.lua aufgerufen)
 -- ================================================
 
 function OpenMDT()
+    if isMDTOpen or isAdminOpen then return end
+    if not isPolice then return end
+    
     isMDTOpen = true
     SetNuiFocus(true, true)
-
-    -- Initiale Daten laden
     TriggerServerEvent('mdt:getWantedList')
     TriggerServerEvent('mdt:getStatistics')
-
-    SendNUIMessage({
-        type = 'openMDT',
-        job = currentJob,
-        grade = currentGrade,
-    })
+    SendNUIMessage({ type = 'openMDT', job = currentJob, grade = currentGrade })
 end
 
--- ================================================
--- Admin Dashboard öffnen
--- ================================================
-
 function OpenAdminDashboard()
+    if isMDTOpen or isAdminOpen then return end
+    if not isAdmin then return end
+    
     isAdminOpen = true
     SetNuiFocus(true, true)
-
     TriggerServerEvent('admin:getFullStatistics')
     TriggerServerEvent('admin:getLogs', 50)
     TriggerServerEvent('admin:getAllCalls', 100)
-
-    SendNUIMessage({
-        type = 'openAdmin'
-    })
+    SendNUIMessage({ type = 'openAdmin' })
 end
-
--- ================================================
--- UIs schließen
--- ================================================
 
 function CloseMDT()
     isMDTOpen = false
@@ -124,6 +81,26 @@ function CloseAdmin()
     SetNuiFocus(false, false)
     SendNUIMessage({ type = 'closeAdmin' })
 end
+
+-- Exports für cl_menu.lua
+exports('OpenMDT', OpenMDT)
+exports('OpenAdminDashboard', OpenAdminDashboard)
+exports('CloseMDT', CloseMDT)
+exports('CloseAdmin', CloseAdmin)
+exports('IsMDTOpen', function() return isMDTOpen end)
+exports('IsAdminOpen', function() return isAdminOpen end)
+
+-- ================================================
+-- Event Handler (von cl_menu.lua)
+-- ================================================
+
+RegisterNetEvent('city_memory:openMDT', function()
+    OpenMDT()
+end)
+
+RegisterNetEvent('city_memory:openAdmin', function()
+    OpenAdminDashboard()
+end)
 
 -- ================================================
 -- NUI Callbacks - MDT
@@ -205,31 +182,19 @@ end)
 -- ================================================
 
 RegisterNetEvent('mdt:personSearchResults', function(results)
-    SendNUIMessage({
-        type = 'mdt:personResults',
-        results = results
-    })
+    SendNUIMessage({ type = 'mdt:personResults', results = results })
 end)
 
 RegisterNetEvent('mdt:personDetails', function(data)
-    SendNUIMessage({
-        type = 'mdt:personDetails',
-        data = data
-    })
+    SendNUIMessage({ type = 'mdt:personDetails', data = data })
 end)
 
 RegisterNetEvent('mdt:vehicleSearchResults', function(data)
-    SendNUIMessage({
-        type = 'mdt:vehicleResults',
-        data = data
-    })
+    SendNUIMessage({ type = 'mdt:vehicleResults', data = data })
 end)
 
 RegisterNetEvent('mdt:personNotes', function(notes)
-    SendNUIMessage({
-        type = 'mdt:personNotes',
-        notes = notes
-    })
+    SendNUIMessage({ type = 'mdt:personNotes', notes = notes })
 end)
 
 RegisterNetEvent('mdt:noteAdded', function(success)
@@ -239,10 +204,7 @@ RegisterNetEvent('mdt:noteAdded', function(success)
 end)
 
 RegisterNetEvent('mdt:wantedList', function(wanted)
-    SendNUIMessage({
-        type = 'mdt:wantedList',
-        wanted = wanted
-    })
+    SendNUIMessage({ type = 'mdt:wantedList', wanted = wanted })
 end)
 
 RegisterNetEvent('mdt:newWanted', function(data)
@@ -251,17 +213,11 @@ RegisterNetEvent('mdt:newWanted', function(data)
 end)
 
 RegisterNetEvent('mdt:wantedRemoved', function(id)
-    SendNUIMessage({
-        type = 'mdt:wantedRemoved',
-        id = id
-    })
+    SendNUIMessage({ type = 'mdt:wantedRemoved', id = id })
 end)
 
 RegisterNetEvent('mdt:statistics', function(stats)
-    SendNUIMessage({
-        type = 'mdt:statistics',
-        stats = stats
-    })
+    SendNUIMessage({ type = 'mdt:statistics', stats = stats })
 end)
 
 RegisterNetEvent('mdt:error', function(message)
@@ -273,24 +229,15 @@ end)
 -- ================================================
 
 RegisterNetEvent('admin:fullStatistics', function(stats)
-    SendNUIMessage({
-        type = 'admin:statistics',
-        stats = stats
-    })
+    SendNUIMessage({ type = 'admin:statistics', stats = stats })
 end)
 
 RegisterNetEvent('admin:logs', function(logs)
-    SendNUIMessage({
-        type = 'admin:logs',
-        logs = logs
-    })
+    SendNUIMessage({ type = 'admin:logs', logs = logs })
 end)
 
 RegisterNetEvent('admin:allCalls', function(data)
-    SendNUIMessage({
-        type = 'admin:allCalls',
-        calls = data
-    })
+    SendNUIMessage({ type = 'admin:allCalls', calls = data })
 end)
 
 RegisterNetEvent('admin:resetSuccess', function(dataType)
@@ -302,7 +249,7 @@ RegisterNetEvent('admin:error', function(message)
 end)
 
 -- ================================================
--- Sound Helper
+-- Helper Functions
 -- ================================================
 
 function PlayAlertSound()
@@ -311,17 +258,21 @@ function PlayAlertSound()
     end
 end
 
--- ================================================
--- Notification Helper (reuse from dispatch)
--- ================================================
-
 function ShowNotification(title, message, urgent)
-    SendNUIMessage({
-        type = 'showNotification',
-        title = title,
-        message = message,
-        urgent = urgent or false
-    })
+    if lib and lib.notify then
+        lib.notify({
+            title = title:gsub('~%w~', ''),
+            description = message,
+            type = urgent and 'error' or 'inform'
+        })
+    else
+        SendNUIMessage({
+            type = 'showNotification',
+            title = title,
+            message = message,
+            urgent = urgent or false
+        })
+    end
 end
 
 -- ================================================
@@ -331,7 +282,7 @@ end
 CreateThread(function()
     while true do
         Wait(0)
-
+        
         if isMDTOpen or isAdminOpen then
             DisableControlAction(0, 1, true)
             DisableControlAction(0, 2, true)

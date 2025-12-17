@@ -1,11 +1,12 @@
 -- ================================================
 -- City Memory System - Dispatch Client
 -- Notruf & Einsatzverwaltung UI Controller
+-- HINWEIS: Keybinds wurden nach cl_menu.lua verschoben
 -- ================================================
 
 local ESX = exports['es_extended']:getSharedObject()
 
--- Variablen ZUERST definieren
+-- Variablen
 local isDispatchOpen = false
 local isCallUIOpen = false
 local currentCalls = {}
@@ -14,7 +15,7 @@ local categories = {}
 local isDispatcher = false
 local currentJob = nil
 
--- DANN die Events
+-- Job Status
 RegisterNetEvent('esx:playerLoaded', function(xPlayer)
     currentJob = xPlayer.job.name
     isDispatcher = IsDispatcherJob(currentJob)
@@ -25,14 +26,9 @@ RegisterNetEvent('esx:setJob', function(job)
     isDispatcher = IsDispatcherJob(currentJob)
 end)
 
--- ================================================
--- Job Check
--- ================================================
-
 CreateThread(function()
     while true do
         Wait(2000)
-
         local playerData = ESX.GetPlayerData()
         if playerData and playerData.job then
             currentJob = playerData.job.name
@@ -42,89 +38,54 @@ CreateThread(function()
 end)
 
 -- ================================================
--- Keybinds
--- ================================================
-
--- F5 = Notruf UI (für alle)
-RegisterCommand('openCallUI', function()
-    if isCallUIOpen or isDispatchOpen then return end
-    OpenCallUI()
-end, false)
-RegisterKeyMapping('openCallUI', 'Notruf absetzen', 'keyboard', 'F5')
-
--- J = Dispatch UI (nur für Einsatzkräfte)
-RegisterCommand('openDispatch', function()
-    if isCallUIOpen or isDispatchOpen then return end
-    if not isDispatcher then
-        -- Serverseitigen Fallback prüfen (falls Client-Jobdaten noch nicht geladen sind)
-        TriggerServerEvent('dispatch:canOpen')
-        ShowNotification('~y~Prüfe Berechtigung', 'Bitte warten...')
-        return
-    end
-    OpenDispatchUI()
-end, false)
-
--- Ergebnis der serverseitigen Berechtigungsprüfung
-RegisterNetEvent('dispatch:canOpenResult', function(allowed, job)
-    if allowed then
-        currentJob = job or currentJob
-        isDispatcher = true
-        if not isDispatchOpen and not isCallUIOpen then
-            OpenDispatchUI()
-        end
-    else
-        ShowNotification('~r~Keine Berechtigung', 'Du bist keine Einsatzkraft.')
-    end
-end)
-RegisterKeyMapping('openDispatch', 'Dispatch öffnen', 'keyboard', 'J')
-
--- ================================================
--- Notruf UI öffnen (Zivilist)
+-- UI Funktionen (werden von cl_menu.lua aufgerufen)
 -- ================================================
 
 function OpenCallUI()
+    if isCallUIOpen or isDispatchOpen then return end
     isCallUIOpen = true
     SetNuiFocus(true, true)
-
     TriggerServerEvent('dispatch:getCategories')
-
-    SendNUIMessage({
-        type = 'openCallUI'
-    })
+    SendNUIMessage({ type = 'openCallUI' })
 end
 
--- ================================================
--- Dispatch UI öffnen (Einsatzkräfte)
--- ================================================
-
 function OpenDispatchUI()
+    if isCallUIOpen or isDispatchOpen then return end
+    if not isDispatcher then return end
+    
     isDispatchOpen = true
     SetNuiFocus(true, true)
-
-    -- Calls laden
     TriggerServerEvent('dispatch:getCalls')
     TriggerServerEvent('dispatch:getMyCalls')
     TriggerServerEvent('dispatch:getOnlineUnits')
-
-    SendNUIMessage({
-        type = 'openDispatchUI',
-        job = currentJob
-    })
+    SendNUIMessage({ type = 'openDispatchUI', job = currentJob })
 end
-
--- ================================================
--- UIs schließen
--- ================================================
 
 function CloseAllUI()
     isDispatchOpen = false
     isCallUIOpen = false
     SetNuiFocus(false, false)
-
-    SendNUIMessage({
-        type = 'closeAll'
-    })
+    SendNUIMessage({ type = 'closeAll' })
 end
+
+-- Exports für cl_menu.lua
+exports('OpenCallUI', OpenCallUI)
+exports('OpenDispatchUI', OpenDispatchUI)
+exports('CloseAllUI', CloseAllUI)
+exports('IsDispatchOpen', function() return isDispatchOpen end)
+exports('IsCallUIOpen', function() return isCallUIOpen end)
+
+-- ================================================
+-- Event Handler (von cl_menu.lua)
+-- ================================================
+
+RegisterNetEvent('city_memory:openCallUI', function()
+    OpenCallUI()
+end)
+
+RegisterNetEvent('city_memory:openDispatch', function()
+    OpenDispatchUI()
+end)
 
 -- ================================================
 -- NUI Callbacks
@@ -136,7 +97,6 @@ RegisterNUICallback('closeUI', function(data, cb)
 end)
 
 RegisterNUICallback('submitCall', function(data, cb)
-    -- Echten Straßennamen clientseitig ermitteln und normalisieren
     local function trim(s)
         if not s then return '' end
         return (s:gsub('^%s+', ''):gsub('%s+$', ''))
@@ -145,7 +105,6 @@ RegisterNUICallback('submitCall', function(data, cb)
     local function normalizeStreet(mainName, crossName)
         mainName = trim(mainName or '')
         crossName = trim(crossName or '')
-        -- Gleiche Namen nicht doppelt anzeigen
         if mainName ~= '' and crossName ~= '' and mainName:lower() == crossName:lower() then
             crossName = ''
         end
@@ -155,7 +114,6 @@ RegisterNUICallback('submitCall', function(data, cb)
         else
             name = mainName ~= '' and mainName or ''
         end
-        -- Mehrfache Leerzeichen reduzieren
         name = name:gsub('%s+', ' ')
         return trim(name)
     end
@@ -220,70 +178,43 @@ end)
 
 RegisterNetEvent('dispatch:receiveCategories', function(cats)
     categories = cats
-    SendNUIMessage({
-        type = 'setCategories',
-        categories = cats
-    })
+    SendNUIMessage({ type = 'setCategories', categories = cats })
 end)
 
 RegisterNetEvent('dispatch:receiveCalls', function(calls)
     currentCalls = calls
-    SendNUIMessage({
-        type = 'setCalls',
-        calls = calls
-    })
+    SendNUIMessage({ type = 'setCalls', calls = calls })
 end)
 
 RegisterNetEvent('dispatch:receiveMyCalls', function(calls)
     myCalls = calls
-    SendNUIMessage({
-        type = 'setMyCalls',
-        calls = calls
-    })
+    SendNUIMessage({ type = 'setMyCalls', calls = calls })
 end)
 
 RegisterNetEvent('dispatch:receiveOnlineUnits', function(units)
-    SendNUIMessage({
-        type = 'setOnlineUnits',
-        units = units
-    })
+    SendNUIMessage({ type = 'setOnlineUnits', units = units })
 end)
 
--- ================================================
--- Neue Notrufe / Updates
--- ================================================
-
 RegisterNetEvent('dispatch:newCall', function(call)
-    -- Sound abspielen
     PlaySound(-1, 'TIMER_STOP', 'HUD_MINI_GAME_SOUNDSET', false, 0, true)
-
-    -- Notification anzeigen
     ShowCallNotification(call)
-
-    -- UI aktualisieren wenn offen
+    
     if isDispatchOpen then
         table.insert(currentCalls, 1, call)
-        SendNUIMessage({
-            type = 'newCall',
-            call = call
-        })
+        SendNUIMessage({ type = 'newCall', call = call })
     end
 end)
 
 RegisterNetEvent('dispatch:callUpdated', function(call)
-    -- In lokaler Liste aktualisieren
     for i, c in ipairs(currentCalls) do
         if c.id == call.id then
             currentCalls[i] = call
             break
         end
     end
-
+    
     if isDispatchOpen then
-        SendNUIMessage({
-            type = 'updateCall',
-            call = call
-        })
+        SendNUIMessage({ type = 'updateCall', call = call })
     end
 end)
 
@@ -294,33 +225,22 @@ RegisterNetEvent('dispatch:callRemoved', function(callId)
             break
         end
     end
-
+    
     if isDispatchOpen then
-        SendNUIMessage({
-            type = 'removeCall',
-            callId = callId
-        })
+        SendNUIMessage({ type = 'removeCall', callId = callId })
     end
 end)
 
 RegisterNetEvent('dispatch:callAccepted', function(data)
     ShowNotification('~g~Einsatz angenommen', 'Notruf #' .. data.callId .. ' zugewiesen.')
-
-    -- Route setzen
     local coords = data.call.location.coords
     SetNewWaypoint(coords.x, coords.y)
 end)
 
 RegisterNetEvent('dispatch:backupRequested', function(data)
-    -- Alarm-Sound
     PlaySound(-1, 'CHECKPOINT_NORMAL', 'HUD_MINI_GAME_SOUNDSET', false, 0, true)
-
     ShowNotification('~o~BACKUP ANGEFORDERT', data.requestedBy .. ' braucht Verstärkung!\n' .. data.call.location.zone, true)
 end)
-
--- ================================================
--- Anrufer Benachrichtigungen
--- ================================================
 
 RegisterNetEvent('dispatch:callCreated', function(data)
     ShowNotification('~g~Notruf übermittelt', 'ID: #' .. data.callId .. '\n' .. data.message)
@@ -345,12 +265,21 @@ end)
 -- ================================================
 
 function ShowNotification(title, message, urgent)
-    SendNUIMessage({
-        type = 'showNotification',
-        title = title,
-        message = message,
-        urgent = urgent or false
-    })
+    -- Versuche ox_lib, sonst NUI fallback
+    if lib and lib.notify then
+        lib.notify({
+            title = title:gsub('~%w~', ''),
+            description = message,
+            type = urgent and 'error' or 'inform'
+        })
+    else
+        SendNUIMessage({
+            type = 'showNotification',
+            title = title,
+            message = message,
+            urgent = urgent or false
+        })
+    end
 end
 
 function ShowCallNotification(call)
@@ -366,20 +295,20 @@ function ShowCallNotification(call)
 end
 
 -- ================================================
--- ESC zum Schließen
+-- ESC Handling
 -- ================================================
 
 CreateThread(function()
     while true do
         Wait(0)
-
+        
         if isDispatchOpen or isCallUIOpen then
-            DisableControlAction(0, 1, true) -- Look LR
-            DisableControlAction(0, 2, true) -- Look UD
-            DisableControlAction(0, 142, true) -- MeleeAttackAlternate
-            DisableControlAction(0, 18, true) -- Enter
-            DisableControlAction(0, 322, true) -- ESC
-            DisableControlAction(0, 199, true) -- Pause
+            DisableControlAction(0, 1, true)
+            DisableControlAction(0, 2, true)
+            DisableControlAction(0, 142, true)
+            DisableControlAction(0, 18, true)
+            DisableControlAction(0, 322, true)
+            DisableControlAction(0, 199, true)
 
             if IsDisabledControlJustReleased(0, 322) then
                 CloseAllUI()
@@ -389,13 +318,12 @@ CreateThread(function()
 end)
 
 -- ================================================
--- Auto-Refresh wenn Dispatch offen
+-- Auto-Refresh
 -- ================================================
 
 CreateThread(function()
     while true do
-        Wait(10000) -- Alle 10 Sekunden
-
+        Wait(10000)
         if isDispatchOpen then
             TriggerServerEvent('dispatch:getCalls')
             TriggerServerEvent('dispatch:getMyCalls')

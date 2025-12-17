@@ -7,13 +7,39 @@ Config.Debug = true
 Config.PersistentLogs = true
 
 -- ================================================
--- TASTEN-BINDINGS
+-- MENÜ SYSTEM (NEU)
+-- ================================================
+Config.Menu = {
+    -- Radial Menu aktivieren (benötigt ox_lib)
+    useRadialMenu = true,
+    
+    -- ox_target Interaktionen aktivieren (benötigt ox_target)
+    useOxTarget = true,
+    
+    -- Optionaler Keybind für schnellen Zugriff aufs Menü
+    -- Wenn false, nur über Radial Menu oder Commands erreichbar
+    enableKeybind = false,
+    keybind = 'F5',  -- Nur wenn enableKeybind = true
+    
+    -- Commands immer verfügbar:
+    -- /citymemory oder /cm - Hauptmenü
+    -- /notruf - Notruf direkt
+    -- /dispatch - Dispatch direkt
+    -- /mdt - MDT direkt
+    -- /heatmap - Heatmap toggle
+    -- /cityadmin - Admin Panel
+}
+
+-- ================================================
+-- ALTE KEYBINDS (DEPRECATED - nur für Fallback)
 -- ================================================
 Config.Keys = {
-    openDispatch = 'J',         -- Dispatch UI (Einsatzkräfte)
-    openCall = 'F5',            -- Notruf UI (Zivilisten)
-    openMDT = 'F6',             -- MDT UI (Polizei)
-    openAdmin = 'F7',           -- Admin Dashboard
+    -- Diese werden NICHT mehr verwendet wenn Config.Menu.useRadialMenu = true
+    -- Nur als Fallback wenn ox_lib nicht vorhanden
+    openDispatch = 'J',
+    openCall = 'F5',
+    openMDT = 'F6',
+    openAdmin = 'F7',
 }
 
 -- ================================================
@@ -27,8 +53,8 @@ Config.Jobs = {
         'fib',
         'lspd',
         'bcso',
-        'sahp',         -- San Andreas Highway Patrol
-        'ranger',       -- Park Ranger
+        'sahp',
+        'ranger',
     },
 
     -- EMS Jobs (sehen medizinische & Unfälle)
@@ -37,7 +63,7 @@ Config.Jobs = {
         'ems',
         'firefighter',
         'fire',
-        'lsfd',         -- Los Santos Fire Department
+        'lsfd',
     },
 
     -- Admin Jobs (sehen Admin-Dashboard)
@@ -50,10 +76,10 @@ Config.Jobs = {
 
 -- Mindest-Dienstgrad für bestimmte Aktionen
 Config.MinGrades = {
-    markVehicle = 2,        -- Fahrzeug zur Fahndung ausschreiben
-    viewFullProfile = 2,    -- Detaillierte Spieler-Profile sehen
-    accessAdminPanel = 0,   -- Admin-Panel (0 = alle Admins)
-    closeOthersCalls = 3,   -- Notrufe anderer abschließen
+    markVehicle = 2,
+    viewFullProfile = 2,
+    accessAdminPanel = 0,
+    closeOthersCalls = 3,
 }
 
 -- ================================================
@@ -170,13 +196,13 @@ Config.Categories = {
 -- DISPATCH EINSTELLUNGEN
 -- ================================================
 Config.Dispatch = {
-    callTimeout = 15 * 60,          -- Notruf-Timeout in Sekunden (15 Min)
-    maxActiveCalls = 50,            -- Maximale aktive Notrufe
-    autoDeleteCompleted = 30,       -- Abgeschlossene Calls nach X Sekunden löschen
-    allowAnonymous = true,          -- Anonyme Notrufe erlauben
-    notifyOnNewCall = true,         -- Benachrichtigung bei neuem Notruf
-    notifyOnBackup = true,          -- Benachrichtigung bei Backup-Anforderung
-    autoSetWaypoint = true,         -- Automatisch Route setzen bei Annahme
+    callTimeout = 15 * 60,
+    maxActiveCalls = 50,
+    autoDeleteCompleted = 30,
+    allowAnonymous = true,
+    notifyOnNewCall = true,
+    notifyOnBackup = true,
+    autoSetWaypoint = true,
 }
 
 -- ================================================
@@ -184,10 +210,10 @@ Config.Dispatch = {
 -- ================================================
 Config.MDT = {
     enabled = true,
-    searchCooldown = 2,             -- Sekunden zwischen Suchen
-    maxSearchResults = 20,          -- Maximale Suchergebnisse
-    showPlayerPhotos = true,        -- Spielerfotos anzeigen (wenn vorhanden)
-    allowNotesEdit = true,          -- Notizen bearbeiten erlauben
+    searchCooldown = 2,
+    maxSearchResults = 20,
+    showPlayerPhotos = true,
+    allowNotesEdit = true,
 }
 
 -- ================================================
@@ -198,7 +224,7 @@ Config.ZoneHeat = {
     min = 0.0,
     decayRate = 0.01,
     decayAccelerated = 0.02,
-    acceleratedThreshold = 1800000, -- 30 Min in ms
+    acceleratedThreshold = 1800000,
 }
 
 Config.HeatModifiers = {
@@ -222,12 +248,12 @@ Config.EventCooldowns = {
 -- ================================================
 Config.ZoneHeatmap = {
     enabled = true,
-    copMin = 0.10,              -- Mindest-Heat für Polizei
-    civMin = 0.50,              -- Mindest-Heat für Zivilisten
-    radius = 150.0,             -- Blip-Radius in Metern
-    interval = 30000,           -- Update-Intervall Client (ms)
-    requestCooldownMs = 5000,   -- Serverseitiges Rate-Limit pro Spieler (ms)
-    maxZones = 80               -- Optional: Max. Zonen gleichzeitig (derzeit clientseitig nicht limitiert)
+    copMin = 0.10,
+    civMin = 0.50,
+    radius = 150.0,
+    interval = 30000,
+    requestCooldownMs = 5000,
+    maxZones = 80
 }
 
 -- ================================================
@@ -257,15 +283,14 @@ Config.RiskLevels = {
 -- ================================================
 -- DECAY EINSTELLUNGEN
 -- ================================================
-Config.DecayInterval = 300000 -- 5 Minuten
+Config.DecayInterval = 300000
 
 -- ================================================
--- SOUNDS (für Custom Sounds: Dateien in html/sounds/ ablegen)
+-- SOUNDS
 -- ================================================
 Config.Sounds = {
     enabled = true,
 
-    -- GTA Native Sounds (Standard)
     newCall = {
         type = 'native',
         name = 'TIMER_STOP',
@@ -291,26 +316,17 @@ Config.Sounds = {
         name = 'ERROR',
         set = 'HUD_FRONTEND_DEFAULT_SOUNDSET',
     },
-
-    -- Für Custom Sounds (HTML5 Audio):
-    -- newCall = {
-    --     type = 'custom',
-    --     file = 'sounds/dispatch.mp3',
-    --     volume = 0.5,
-    -- },
 }
 
 -- ================================================
--- UI FARBEN (für Anpassung)
+-- UI FARBEN
 -- ================================================
 Config.UI = {
-    primaryColor = '#1976d2',       -- Haupt-Blau
-    dangerColor = '#f44336',        -- Rot
-    warningColor = '#ff9800',       -- Orange
-    successColor = '#4caf50',       -- Grün
-    backgroundColor = '#0a1628',    -- Hintergrund
-
-    -- Prioritäts-Farben
+    primaryColor = '#1976d2',
+    dangerColor = '#f44336',
+    warningColor = '#ff9800',
+    successColor = '#4caf50',
+    backgroundColor = '#0a1628',
     priorityHigh = '#f44336',
     priorityMedium = '#ff9800',
     priorityLow = '#4caf50',
@@ -321,8 +337,40 @@ Config.UI = {
 -- ================================================
 Config.Admin = {
     enabled = true,
-    refreshInterval = 30,           -- Auto-Refresh in Sekunden
-    maxLogEntries = 100,            -- Maximale Log-Einträge anzeigen
-    allowDataExport = true,         -- Daten-Export erlauben
-    allowDataReset = true,          -- Daten-Reset erlauben (gefährlich!)
+    refreshInterval = 30,
+    maxLogEntries = 100,
+    allowDataExport = true,
+    allowDataReset = true,
+}
+
+-- ================================================
+-- OX_TARGET POSITIONEN (anpassbar)
+-- ================================================
+Config.TargetLocations = {
+    -- Polizei Computer (MDT)
+    mdt = {
+        { coords = vec3(441.79, -982.08, 30.69), label = 'Mission Row PD' },
+        { coords = vec3(-1093.84, -809.13, 19.29), label = 'Vespucci PD' },
+        { coords = vec3(1853.18, 3686.63, 34.27), label = 'Sandy Shores' },
+        { coords = vec3(-448.22, 6012.85, 31.72), label = 'Paleto Bay' },
+    },
+    
+    -- Dispatch Terminals
+    dispatch = {
+        { coords = vec3(441.16, -979.43, 30.69), label = 'Mission Row Leitstelle' },
+    },
+    
+    -- EMS Terminals
+    ems = {
+        { coords = vec3(311.67, -592.76, 43.29), label = 'Pillbox Hospital' },
+    },
+    
+    -- Öffentliche Telefone
+    phones = {
+        vec3(232.28, -899.35, 30.09),
+        vec3(-1037.97, -2733.82, 13.76),
+        vec3(1693.44, 4788.22, 41.99),
+        vec3(-379.53, 6118.32, 31.85),
+        vec3(1960.17, 3740.48, 32.34),
+    },
 }
