@@ -4,7 +4,7 @@ game 'gta5'
 name 'city_memory'
 description 'Persistentes Stadt-Gedächtnis, Dispatch & MDT System für ESX'
 author 'Andreas Konopka'
-version '2.1.0'
+version '2.4.0'
 
 lua54 'yes'
 
