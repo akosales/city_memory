@@ -1,9 +1,11 @@
 /* ================================================
    City Memory - MDT & Admin JavaScript
+   v2.4 - Mit Event-Labels und Fahndungs-Button
    ================================================ */
 
 let searchType = 'person';
 let currentPersonDetail = null;
+let currentPersonName = null;
 let confirmAction = null;
 
 // ================================================
@@ -57,8 +59,9 @@ function performSearch() {
     }
 }
 
-function openPersonDetail(identifier) {
+function openPersonDetail(identifier, name) {
     currentPersonDetail = identifier;
+    currentPersonName = name || 'Unbekannt';
     fetch('https://city_memory/mdt:getPersonDetails', {
         method: 'POST',
         body: JSON.stringify({ identifier: identifier })
@@ -72,6 +75,7 @@ function openPersonDetail(identifier) {
 function closePersonDetail() {
     document.getElementById('person-detail').classList.add('hidden');
     currentPersonDetail = null;
+    currentPersonName = null;
 }
 
 function openCreateWanted() {
@@ -80,6 +84,15 @@ function openCreateWanted() {
 
 function closeCreateWanted() {
     document.getElementById('create-wanted-modal').classList.add('hidden');
+}
+
+function openCreateWantedForPerson() {
+    if (!currentPersonName) return;
+
+    document.getElementById('wanted-type').value = 'person';
+    document.getElementById('wanted-target').value = currentPersonName;
+    document.getElementById('wanted-reason').value = '';
+    openCreateWanted();
 }
 
 function submitWanted() {
@@ -253,7 +266,7 @@ function renderPersonResults(results) {
     }
 
     container.innerHTML = results.map(r => `
-        <div class="result-card" onclick="openPersonDetail('${r.identifier}')">
+        <div class="result-card" onclick="openPersonDetail('${r.identifier}', '${escapeHtml(r.name)}')">
             <div class="result-card-header">
                 <div class="result-name">
                     ${escapeHtml(r.name)}
@@ -274,6 +287,11 @@ function renderPersonDetail(data) {
 
     const container = document.getElementById('person-detail-content');
     const profile = data.profile || {};
+
+    // Name speichern für Fahndung
+    if (data.onlinePlayer?.name) {
+        currentPersonName = data.onlinePlayer.name;
+    }
 
     container.innerHTML = `
         <div class="detail-section">
@@ -325,10 +343,19 @@ function renderPersonDetail(data) {
             <div class="event-list">
                 ${data.events.length > 0 ? data.events.map(e => `
                     <div class="event-item">
-                        <span class="event-type">${e.event_type}</span>
+                        <span class="event-type">${getEventLabel(e.event_type)}</span>
                         <span class="event-time">${formatDate(e.created_at)}</span>
                     </div>
                 `).join('') : '<div style="color: #888; padding: 10px;">Keine Vorfälle</div>'}
+            </div>
+        </div>
+        
+        <div class="detail-section">
+            <div class="detail-section-title">Aktionen</div>
+            <div class="detail-actions">
+                <button class="btn btn-danger" onclick="openCreateWantedForPerson()">
+                    🚨 Zur Fahndung ausschreiben
+                </button>
             </div>
         </div>
         
@@ -404,15 +431,27 @@ function renderVehicleResult(data) {
                     <div class="event-list">
                         ${data.events.slice(0, 5).map(e => `
                             <div class="event-item">
-                                <span class="event-type">${e.event_type}</span>
+                                <span class="event-type">${getEventLabel(e.event_type)}</span>
                                 <span class="event-time">${formatDate(e.created_at)}</span>
                             </div>
                         `).join('')}
                     </div>
                 </div>
             ` : ''}
+            <div style="margin-top: 15px;">
+                <button class="btn btn-danger" onclick="openCreateWantedForVehicle('${data.plate}')">
+                    🚨 Zur Fahndung ausschreiben
+                </button>
+            </div>
         </div>
     `;
+}
+
+function openCreateWantedForVehicle(plate) {
+    document.getElementById('wanted-type').value = 'vehicle';
+    document.getElementById('wanted-target').value = plate;
+    document.getElementById('wanted-reason').value = '';
+    openCreateWanted();
 }
 
 function renderWantedList(wanted) {
@@ -642,6 +681,23 @@ function getRiskLabel(risk) {
 function getRiskColor(risk) {
     const colors = { high: '#f44336', medium: '#ff9800', low: '#4caf50', clean: '#4caf50', unknown: '#888' };
     return colors[risk] || '#888';
+}
+
+function getEventLabel(eventType) {
+    const labels = {
+        'weapon_vs_npc': '🔫 Waffengebrauch (NPC)',
+        'weapon_vs_player': '🔫 Waffengebrauch (Spieler)',
+        'flee_police': '🏃 Flucht vor Polizei',
+        'cooperate': '🤝 Kooperation',
+        'surrender': '🙌 Selbststellung',
+        'shooting': '💥 Schussabgabe',
+        'chase': '🚗 Verfolgungsjagd',
+        'peaceful_day': '✨ Friedlicher Tag',
+        'traffic_stop': '🚦 Verkehrskontrolle',
+        'crime_scene': '🔍 Am Tatort gesehen',
+        'flee': '🏃 Flucht'
+    };
+    return labels[eventType] || eventType;
 }
 
 function formatDate(dateStr) {

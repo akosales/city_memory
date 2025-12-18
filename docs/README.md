@@ -1,5 +1,7 @@
 # City Memory — Persistentes Stadtgedächtnis, Dispatch & MDT für ESX
 
+![City Memory Screenshot](../html/img/cm-image.png)
+
 Ein modulares FiveM‑System, das Stadtzonen, Spieler‑ und Fahrzeughistorien sowie Notrufe (Dispatch) und ein MDT (Mobile Data Terminal) zentral verbindet. Entwickelt für ESX, mit moderner NUI (HTML/CSS/JS), optionalem Radial‑Menü (ox_lib) und Interaktionen über ox_target.
 
 Aktuelle Version der Resource: 2.4.0 (siehe `fxmanifest.lua`)
