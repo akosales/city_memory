@@ -3,7 +3,7 @@ game 'gta5'
 
 name 'city_memory'
 description 'Persistentes Stadt-Gedächtnis, Dispatch & MDT System für ESX'
-author 'GrandRP Dev Team'
+author 'Andreas Konopka'
 version '2.1.0'
 
 lua54 'yes'
@@ -11,8 +11,8 @@ lua54 'yes'
 -- Dependencies
 dependencies {
     'es_extended',
-    'ox_lib',       -- Für Radial Menu & Notifications
-    'ox_target',    -- Für Interaktionen an Objekten (optional aber empfohlen)
+    'ox_lib',
+    'ox_target',
 }
 
 ui_page 'html/index.html'
@@ -28,7 +28,7 @@ files {
 }
 
 shared_scripts {
-    '@ox_lib/init.lua',  -- ox_lib Initialisierung
+    '@ox_lib/init.lua',
     'shared/config.lua',
     'shared/utils.lua',
     'shared/zones.lua'
@@ -47,8 +47,8 @@ server_scripts {
 }
 
 client_scripts {
-    'client/cl_menu.lua',       -- NEU: Zentrales Menü (ox_lib)
-    'client/cl_target.lua',     -- NEU: ox_target Interaktionen
+    'client/cl_menu.lua',
+    'client/cl_target.lua',
     'client/cl_effects.lua',
     'client/cl_feedback.lua',
     'client/cl_dispatch.lua',
