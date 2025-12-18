@@ -1,9 +1,15 @@
-src/
+# Source Code (privat)
+/src/
+/server/
+/client/
+/shared/
+/html/
+/sql/
+
+# Build Script
 build.js
-server/
-client/
-shared/
-html/
-sql/
-src/
-build.js
+
+# IDE
+.idea/
+*.iml
+.DS_Store

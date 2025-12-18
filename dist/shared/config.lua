@@ -1,41 +1,32 @@
 Config = {}
 
 -- ================================================
+-- LANGUAGE / SPRACHE
+-- ================================================
+-- 'de' = German / Deutsch
+-- 'en' = English / Englisch
+Config.Language = 'en'
+
+-- ================================================
 -- DEBUG & LOGGING
 -- ================================================
 Config.Debug = true
 Config.PersistentLogs = true
 
 -- ================================================
--- MENÜ SYSTEM (NEU)
+-- MENU SYSTEM
 -- ================================================
 Config.Menu = {
-    -- Radial Menu aktivieren (benötigt ox_lib)
     useRadialMenu = true,
-
-    -- ox_target Interaktionen aktivieren (benötigt ox_target)
     useOxTarget = true,
-
-    -- Optionaler Keybind für schnellen Zugriff aufs Menü
-    -- Wenn false, nur über Radial Menu oder Commands erreichbar
     enableKeybind = false,
-    keybind = 'F5',  -- Nur wenn enableKeybind = true
-
-    -- Commands immer verfügbar:
-    -- /citymemory oder /cm - Hauptmenü
-    -- /notruf - Notruf direkt
-    -- /dispatch - Dispatch direkt
-    -- /mdt - MDT direkt
-    -- /heatmap - Heatmap toggle
-    -- /cityadmin - Admin Panel
+    keybind = 'F5',
 }
 
 -- ================================================
--- ALTE KEYBINDS (DEPRECATED - nur für Fallback)
+-- LEGACY KEYBINDS (DEPRECATED)
 -- ================================================
 Config.Keys = {
-    -- Diese werden NICHT mehr verwendet wenn Config.Menu.useRadialMenu = true
-    -- Nur als Fallback wenn ox_lib nicht vorhanden
     openDispatch = 'J',
     openCall = 'F5',
     openMDT = 'F6',
@@ -43,10 +34,9 @@ Config.Keys = {
 }
 
 -- ================================================
--- JOBS KONFIGURATION
+-- JOBS CONFIGURATION
 -- ================================================
 Config.Jobs = {
-    -- Polizei Jobs (sehen alle Notrufe außer rein medizinische)
     police = {
         'police',
         'sheriff',
@@ -56,8 +46,6 @@ Config.Jobs = {
         'sahp',
         'ranger',
     },
-
-    -- EMS Jobs (sehen medizinische & Unfälle)
     ems = {
         'ambulance',
         'ems',
@@ -65,8 +53,6 @@ Config.Jobs = {
         'fire',
         'lsfd',
     },
-
-    -- Admin Jobs (sehen Admin-Dashboard)
     admin = {
         'admin',
         'superadmin',
@@ -74,7 +60,6 @@ Config.Jobs = {
     },
 }
 
--- Mindest-Dienstgrad für bestimmte Aktionen
 Config.MinGrades = {
     markVehicle = 2,
     viewFullProfile = 2,
@@ -83,11 +68,191 @@ Config.MinGrades = {
 }
 
 -- ================================================
--- NOTRUF KATEGORIEN
+-- LOCALES / ÜBERSETZUNGEN
+-- ================================================
+Config.Locales = {
+    ['de'] = {
+        -- Categories
+        shooting = 'Schüsse',
+        robbery = 'Überfall',
+        assault = 'Körperverletzung',
+        pursuit = 'Verfolgung',
+        kidnapping = 'Entführung',
+        medical = 'Medizinisch',
+        accident = 'Unfall',
+        fire = 'Feuer',
+        theft = 'Diebstahl',
+        suspicious = 'Verdächtige Person',
+        drugs = 'Drogenhandel',
+        noise = 'Ruhestörung',
+        other = 'Sonstiges',
+
+        -- Priorities
+        priority_high = 'Hoch',
+        priority_medium = 'Mittel',
+        priority_low = 'Niedrig',
+
+        -- Risk Levels
+        risk_high = 'Hohes Risiko',
+        risk_medium = 'Mittleres Risiko',
+        risk_low = 'Geringes Risiko',
+        risk_clean = 'Unauffällig',
+        risk_unknown = 'Unbekannt',
+
+        -- Events
+        event_weapon_vs_npc = 'Waffengebrauch (NPC)',
+        event_weapon_vs_player = 'Waffengebrauch (Spieler)',
+        event_flee_police = 'Flucht vor Polizei',
+        event_cooperate = 'Kooperation',
+        event_surrender = 'Selbststellung',
+        event_shooting = 'Schussabgabe',
+        event_chase = 'Verfolgungsjagd',
+        event_peaceful_day = 'Friedlicher Tag',
+
+        -- UI Labels
+        emergency_call = 'Notruf',
+        dispatch = 'Leitstelle',
+        search = 'Suche',
+        person = 'Person',
+        vehicle = 'Fahrzeug',
+        warrants = 'Fahndungen',
+        statistics = 'Statistiken',
+        notes = 'Notizen',
+        reputation = 'Reputation',
+        violence_tendency = 'Gewaltbereitschaft',
+        flee_tendency = 'Fluchtgefahr',
+        cooperation = 'Kooperation',
+        last_incidents = 'Letzte Vorfälle',
+        no_incidents = 'Keine Vorfälle',
+        add_note = 'Notiz hinzufügen',
+        create_warrant = 'Zur Fahndung ausschreiben',
+        hotspots = 'Aktive Hotspots',
+
+        -- Menu Labels
+        menu_main = 'City Memory',
+        menu_heatmap = 'Heatmap',
+        menu_heatmap_show = 'Heatmap anzeigen',
+        menu_heatmap_hide = 'Heatmap ausblenden',
+        menu_emergency = 'Notruf absetzen',
+        menu_dispatch = 'Leitstelle öffnen',
+        menu_mdt = 'MDT öffnen',
+        menu_police_actions = 'Polizei-Aktionen',
+        menu_check_person = 'Person überprüfen',
+        menu_check_plate = 'Kennzeichen abfragen',
+        menu_new_warrant = 'Neue Fahndung',
+
+        -- Zone Warnings
+        zone_warning_high = 'Gefährliche Gegend! Hier passiert viel Kriminalität.',
+        zone_warning_medium = 'Vorsicht! Erhöhte Kriminalität in dieser Gegend.',
+
+        -- Target Labels
+        target_check_person = 'Person überprüfen',
+        target_mark_cooperate = 'Kooperation vermerken',
+        target_mark_surrender = 'Selbststellung vermerken',
+        target_check_plate = 'Kennzeichen abfragen',
+        target_flag_vehicle = 'Fahrzeug zur Fahndung',
+    },
+
+    ['en'] = {
+        -- Categories
+        shooting = 'Shots Fired',
+        robbery = 'Robbery',
+        assault = 'Assault',
+        pursuit = 'Pursuit',
+        kidnapping = 'Kidnapping',
+        medical = 'Medical',
+        accident = 'Accident',
+        fire = 'Fire',
+        theft = 'Theft',
+        suspicious = 'Suspicious Person',
+        drugs = 'Drug Dealing',
+        noise = 'Noise Complaint',
+        other = 'Other',
+
+        -- Priorities
+        priority_high = 'High',
+        priority_medium = 'Medium',
+        priority_low = 'Low',
+
+        -- Risk Levels
+        risk_high = 'High Risk',
+        risk_medium = 'Medium Risk',
+        risk_low = 'Low Risk',
+        risk_clean = 'Clean',
+        risk_unknown = 'Unknown',
+
+        -- Events
+        event_weapon_vs_npc = 'Weapon Use (NPC)',
+        event_weapon_vs_player = 'Weapon Use (Player)',
+        event_flee_police = 'Fleeing Police',
+        event_cooperate = 'Cooperation',
+        event_surrender = 'Surrender',
+        event_shooting = 'Shots Fired',
+        event_chase = 'Chase',
+        event_peaceful_day = 'Peaceful Day',
+
+        -- UI Labels
+        emergency_call = 'Emergency Call',
+        dispatch = 'Dispatch',
+        search = 'Search',
+        person = 'Person',
+        vehicle = 'Vehicle',
+        warrants = 'Warrants',
+        statistics = 'Statistics',
+        notes = 'Notes',
+        reputation = 'Reputation',
+        violence_tendency = 'Violence Tendency',
+        flee_tendency = 'Flight Risk',
+        cooperation = 'Cooperation',
+        last_incidents = 'Recent Incidents',
+        no_incidents = 'No incidents',
+        add_note = 'Add note',
+        create_warrant = 'Create Warrant',
+        hotspots = 'Active Hotspots',
+
+        -- Menu Labels
+        menu_main = 'City Memory',
+        menu_heatmap = 'Heatmap',
+        menu_heatmap_show = 'Show Heatmap',
+        menu_heatmap_hide = 'Hide Heatmap',
+        menu_emergency = 'Emergency Call',
+        menu_dispatch = 'Open Dispatch',
+        menu_mdt = 'Open MDT',
+        menu_police_actions = 'Police Actions',
+        menu_check_person = 'Check Person',
+        menu_check_plate = 'Check Plate',
+        menu_new_warrant = 'New Warrant',
+
+        -- Zone Warnings
+        zone_warning_high = 'Dangerous area! High crime activity.',
+        zone_warning_medium = 'Caution! Elevated crime in this area.',
+
+        -- Target Labels
+        target_check_person = 'Check Person',
+        target_mark_cooperate = 'Mark as Cooperative',
+        target_mark_surrender = 'Mark as Surrendered',
+        target_check_plate = 'Check Plate',
+        target_flag_vehicle = 'Flag Vehicle',
+    },
+}
+
+-- Helper function to get locale string
+function L(key)
+    local lang = Config.Language or 'en'
+    if Config.Locales[lang] and Config.Locales[lang][key] then
+        return Config.Locales[lang][key]
+    elseif Config.Locales['en'] and Config.Locales['en'][key] then
+        return Config.Locales['en'][key]
+    end
+    return key
+end
+
+-- ================================================
+-- EMERGENCY CATEGORIES
 -- ================================================
 Config.Categories = {
     ['shooting'] = {
-        label = 'Schüsse',
+        label = L('shooting'),
         priority = 'high',
         icon = '🔫',
         police = true,
@@ -95,7 +260,7 @@ Config.Categories = {
         heatModifier = 0.15,
     },
     ['robbery'] = {
-        label = 'Überfall',
+        label = L('robbery'),
         priority = 'high',
         icon = '💰',
         police = true,
@@ -103,7 +268,7 @@ Config.Categories = {
         heatModifier = 0.12,
     },
     ['assault'] = {
-        label = 'Körperverletzung',
+        label = L('assault'),
         priority = 'high',
         icon = '👊',
         police = true,
@@ -111,7 +276,7 @@ Config.Categories = {
         heatModifier = 0.10,
     },
     ['pursuit'] = {
-        label = 'Verfolgung',
+        label = L('pursuit'),
         priority = 'high',
         icon = '🚗',
         police = true,
@@ -119,7 +284,7 @@ Config.Categories = {
         heatModifier = 0.20,
     },
     ['kidnapping'] = {
-        label = 'Entführung',
+        label = L('kidnapping'),
         priority = 'high',
         icon = '🚐',
         police = true,
@@ -127,7 +292,7 @@ Config.Categories = {
         heatModifier = 0.18,
     },
     ['medical'] = {
-        label = 'Medizinisch',
+        label = L('medical'),
         priority = 'medium',
         icon = '🏥',
         police = false,
@@ -135,7 +300,7 @@ Config.Categories = {
         heatModifier = 0.03,
     },
     ['accident'] = {
-        label = 'Unfall',
+        label = L('accident'),
         priority = 'medium',
         icon = '💥',
         police = true,
@@ -143,7 +308,7 @@ Config.Categories = {
         heatModifier = 0.08,
     },
     ['fire'] = {
-        label = 'Feuer',
+        label = L('fire'),
         priority = 'medium',
         icon = '🔥',
         police = true,
@@ -151,7 +316,7 @@ Config.Categories = {
         heatModifier = 0.10,
     },
     ['theft'] = {
-        label = 'Diebstahl',
+        label = L('theft'),
         priority = 'low',
         icon = '🦹',
         police = true,
@@ -159,7 +324,7 @@ Config.Categories = {
         heatModifier = 0.05,
     },
     ['suspicious'] = {
-        label = 'Verdächtige Person',
+        label = L('suspicious'),
         priority = 'low',
         icon = '👤',
         police = true,
@@ -167,7 +332,7 @@ Config.Categories = {
         heatModifier = 0.03,
     },
     ['drugs'] = {
-        label = 'Drogenhandel',
+        label = L('drugs'),
         priority = 'medium',
         icon = '💊',
         police = true,
@@ -175,7 +340,7 @@ Config.Categories = {
         heatModifier = 0.08,
     },
     ['noise'] = {
-        label = 'Ruhestörung',
+        label = L('noise'),
         priority = 'low',
         icon = '📢',
         police = true,
@@ -183,7 +348,7 @@ Config.Categories = {
         heatModifier = 0.02,
     },
     ['other'] = {
-        label = 'Sonstiges',
+        label = L('other'),
         priority = 'low',
         icon = '❓',
         police = true,
@@ -193,7 +358,7 @@ Config.Categories = {
 }
 
 -- ================================================
--- DISPATCH EINSTELLUNGEN
+-- DISPATCH SETTINGS
 -- ================================================
 Config.Dispatch = {
     callTimeout = 15 * 60,
@@ -206,7 +371,7 @@ Config.Dispatch = {
 }
 
 -- ================================================
--- MDT EINSTELLUNGEN
+-- MDT SETTINGS
 -- ================================================
 Config.MDT = {
     enabled = true,
@@ -217,7 +382,7 @@ Config.MDT = {
 }
 
 -- ================================================
--- ZONE HEAT EINSTELLUNGEN
+-- ZONE HEAT SETTINGS
 -- ================================================
 Config.ZoneHeat = {
     max = 1.0,
@@ -244,7 +409,7 @@ Config.EventCooldowns = {
 }
 
 -- ================================================
--- HEATMAP (Zonen-Visualisierung)
+-- HEATMAP (Zone Visualization)
 -- ================================================
 Config.ZoneHeatmap = {
     enabled = true,
@@ -257,37 +422,33 @@ Config.ZoneHeatmap = {
 }
 
 -- ================================================
--- SPIELER-PROFIL EINSTELLUNGEN (RP-Optimiert)
+-- PLAYER PROFILE SETTINGS (RP-Optimized)
 -- ================================================
 Config.PlayerProfile = {
-    defaultReputation = 0.5,      -- Startwert (neutral)
-    decayRate = 0.0005,           -- Langsame Erholung (~3-4 Tage von 0 auf 0.5)
-    maxReputation = 1.0,          -- Maximum (vorbildlich)
-    minReputation = 0.0,          -- Minimum (sehr problematisch)
+    defaultReputation = 0.5,
+    decayRate = 0.0005,
+    maxReputation = 1.0,
+    minReputation = 0.0,
 }
 
 Config.ReputationModifiers = {
-    -- Negative Events (verschlechtern Reputation)
-    ['flee_police'] = -0.12,      -- Flucht vor Polizei (hart)
-    ['weapon_vs_player'] = -0.15, -- Spieler angreifen (am härtesten)
-    ['weapon_vs_npc'] = -0.02,    -- NPC angreifen (mild, passiert im RP oft)
-    ['chase'] = -0.08,            -- Verfolgungsjagd
-    ['shooting'] = -0.05,         -- Schüsse abfeuern
-
-    -- Positive Events (verbessern Reputation)
-    ['cooperate'] = 0.05,         -- Kooperation mit Polizei
-    ['surrender'] = 0.08,         -- Selbststellung (beste Option)
-    ['peaceful_day'] = 0.003,     -- Bonus für 24h ohne Vorfall (klein)
+    ['flee_police'] = -0.12,
+    ['weapon_vs_player'] = -0.15,
+    ['weapon_vs_npc'] = -0.02,
+    ['chase'] = -0.08,
+    ['shooting'] = -0.05,
+    ['cooperate'] = 0.05,
+    ['surrender'] = 0.08,
+    ['peaceful_day'] = 0.003,
 }
 
 Config.RiskLevels = {
-    high = 0.25,                  -- Unter 25% = High Risk (rot)
-    medium = 0.40,                -- Unter 40% = Medium Risk (orange)
-    -- Über 40% = Low Risk (grün/normal)
+    high = 0.25,
+    medium = 0.40,
 }
 
 -- ================================================
--- DECAY EINSTELLUNGEN
+-- DECAY SETTINGS
 -- ================================================
 Config.DecayInterval = 300000
 
@@ -296,7 +457,6 @@ Config.DecayInterval = 300000
 -- ================================================
 Config.Sounds = {
     enabled = true,
-
     newCall = {
         type = 'native',
         name = 'TIMER_STOP',
@@ -325,7 +485,7 @@ Config.Sounds = {
 }
 
 -- ================================================
--- UI FARBEN
+-- UI COLORS
 -- ================================================
 Config.UI = {
     primaryColor = '#1976d2',
@@ -350,28 +510,21 @@ Config.Admin = {
 }
 
 -- ================================================
--- OX_TARGET POSITIONEN (anpassbar)
+-- OX_TARGET LOCATIONS (customizable)
 -- ================================================
 Config.TargetLocations = {
-    -- Polizei Computer (MDT)
     mdt = {
         { coords = vec3(441.79, -982.08, 30.69), label = 'Mission Row PD' },
         { coords = vec3(-1093.84, -809.13, 19.29), label = 'Vespucci PD' },
         { coords = vec3(1853.18, 3686.63, 34.27), label = 'Sandy Shores' },
         { coords = vec3(-448.22, 6012.85, 31.72), label = 'Paleto Bay' },
     },
-
-    -- Dispatch Terminals
     dispatch = {
-        { coords = vec3(441.16, -979.43, 30.69), label = 'Mission Row Leitstelle' },
+        { coords = vec3(441.16, -979.43, 30.69), label = 'Mission Row Dispatch' },
     },
-
-    -- EMS Terminals
     ems = {
         { coords = vec3(311.67, -592.76, 43.29), label = 'Pillbox Hospital' },
     },
-
-    -- Öffentliche Telefone
     phones = {
         vec3(232.28, -899.35, 30.09),
         vec3(-1037.97, -2733.82, 13.76),
