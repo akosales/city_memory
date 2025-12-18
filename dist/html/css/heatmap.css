@@ -1,0 +1,379 @@
+/* ================================================
+   City Memory - Heatmap Legende & Zone Warnungen
+   ================================================ */
+
+/* ================================================
+   Heatmap Legende (rechts unten)
+   ================================================ */
+
+.heatmap-legend {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    background: rgba(10, 22, 40, 0.9);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 10px;
+    padding: 12px 16px;
+    font-family: 'Segoe UI', Tahoma, sans-serif;
+    color: #fff;
+    font-size: 12px;
+    z-index: 1000;
+    backdrop-filter: blur(10px);
+    opacity: 0;
+    transform: translateY(20px);
+    transition: all 0.3s ease;
+    pointer-events: none;
+}
+
+.heatmap-legend.visible {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.heatmap-legend-title {
+    font-weight: 600;
+    font-size: 11px;
+    color: #888;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.heatmap-legend-title::before {
+    content: '🗺️';
+}
+
+.heatmap-legend-items {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.heatmap-legend-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.heatmap-legend-color {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.heatmap-legend-color.green {
+    background: radial-gradient(circle, #4CAF50 0%, #2E7D32 100%);
+    box-shadow: 0 0 8px rgba(76, 175, 80, 0.5);
+}
+
+.heatmap-legend-color.orange {
+    background: radial-gradient(circle, #FF9800 0%, #E65100 100%);
+    box-shadow: 0 0 8px rgba(255, 152, 0, 0.5);
+}
+
+.heatmap-legend-color.red {
+    background: radial-gradient(circle, #f44336 0%, #c62828 100%);
+    box-shadow: 0 0 8px rgba(244, 67, 54, 0.5);
+}
+
+.heatmap-legend-label {
+    color: #ccc;
+    font-size: 11px;
+}
+
+.heatmap-legend-police-note {
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    font-size: 10px;
+    color: #64B5F6;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+/* ================================================
+   Zone Warnung Toast (oben mitte)
+   ================================================ */
+
+.zone-warning {
+    position: fixed;
+    top: 100px;
+    left: 50%;
+    transform: translateX(-50%) translateY(-20px);
+    background: rgba(10, 22, 40, 0.95);
+    border-radius: 12px;
+    padding: 16px 24px;
+    font-family: 'Segoe UI', Tahoma, sans-serif;
+    color: #fff;
+    z-index: 2000;
+    backdrop-filter: blur(15px);
+    opacity: 0;
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    pointer-events: none;
+    max-width: 400px;
+    text-align: center;
+}
+
+.zone-warning.visible {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+}
+
+.zone-warning.level-high {
+    border: 2px solid #f44336;
+    box-shadow: 0 0 30px rgba(244, 67, 54, 0.4);
+}
+
+.zone-warning.level-medium {
+    border: 2px solid #FF9800;
+    box-shadow: 0 0 30px rgba(255, 152, 0, 0.3);
+}
+
+.zone-warning-icon {
+    font-size: 32px;
+    margin-bottom: 8px;
+}
+
+.zone-warning-title {
+    font-size: 18px;
+    font-weight: 700;
+    margin-bottom: 6px;
+}
+
+.zone-warning.level-high .zone-warning-title {
+    color: #f44336;
+}
+
+.zone-warning.level-medium .zone-warning-title {
+    color: #FF9800;
+}
+
+.zone-warning-message {
+    font-size: 13px;
+    color: #bbb;
+    line-height: 1.4;
+}
+
+.zone-warning-incidents {
+    margin-top: 10px;
+    font-size: 11px;
+    color: #888;
+}
+
+/* ================================================
+   Onboarding Intro Modal
+   ================================================ */
+
+.intro-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.8);
+    z-index: 3000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    pointer-events: none;
+}
+
+.intro-overlay.visible {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.intro-modal {
+    background: linear-gradient(145deg, rgba(20, 35, 60, 0.98), rgba(10, 22, 40, 0.98));
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 16px;
+    padding: 30px 40px;
+    max-width: 500px;
+    text-align: center;
+    backdrop-filter: blur(20px);
+    transform: scale(0.9);
+    transition: transform 0.3s ease;
+}
+
+.intro-overlay.visible .intro-modal {
+    transform: scale(1);
+}
+
+.intro-icon {
+    font-size: 48px;
+    margin-bottom: 16px;
+}
+
+.intro-title {
+    font-size: 24px;
+    font-weight: 700;
+    color: #fff;
+    margin-bottom: 12px;
+}
+
+.intro-subtitle {
+    font-size: 14px;
+    color: #888;
+    margin-bottom: 24px;
+}
+
+.intro-legend {
+    display: flex;
+    justify-content: center;
+    gap: 30px;
+    margin-bottom: 24px;
+}
+
+.intro-legend-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+}
+
+.intro-legend-color {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+}
+
+.intro-legend-color.green {
+    background: radial-gradient(circle, #4CAF50 0%, #2E7D32 100%);
+    box-shadow: 0 0 20px rgba(76, 175, 80, 0.5);
+}
+
+.intro-legend-color.orange {
+    background: radial-gradient(circle, #FF9800 0%, #E65100 100%);
+    box-shadow: 0 0 20px rgba(255, 152, 0, 0.5);
+}
+
+.intro-legend-color.red {
+    background: radial-gradient(circle, #f44336 0%, #c62828 100%);
+    box-shadow: 0 0 20px rgba(244, 67, 54, 0.5);
+}
+
+.intro-legend-label {
+    font-size: 12px;
+    color: #ccc;
+    font-weight: 500;
+}
+
+.intro-description {
+    font-size: 13px;
+    color: #aaa;
+    line-height: 1.6;
+    margin-bottom: 24px;
+}
+
+.intro-button {
+    background: linear-gradient(135deg, #1976D2, #1565C0);
+    border: none;
+    border-radius: 8px;
+    padding: 12px 32px;
+    color: #fff;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.intro-button:hover {
+    background: linear-gradient(135deg, #1E88E5, #1976D2);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(25, 118, 210, 0.4);
+}
+
+.intro-key-hint {
+    margin-top: 12px;
+    font-size: 11px;
+    color: #666;
+}
+
+.intro-key-hint kbd {
+    background: rgba(255, 255, 255, 0.1);
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-family: monospace;
+    margin: 0 2px;
+}
+
+/* ================================================
+   Notruf Hint
+   ================================================ */
+
+.notruf-hint {
+    position: fixed;
+    bottom: 120px;
+    right: 20px;
+    background: rgba(25, 118, 210, 0.95);
+    border-radius: 10px;
+    padding: 14px 18px;
+    font-family: 'Segoe UI', Tahoma, sans-serif;
+    color: #fff;
+    z-index: 1500;
+    max-width: 280px;
+    opacity: 0;
+    transform: translateX(20px);
+    transition: all 0.3s ease;
+    pointer-events: none;
+}
+
+.notruf-hint.visible {
+    opacity: 1;
+    transform: translateX(0);
+}
+
+.notruf-hint-icon {
+    font-size: 20px;
+    margin-bottom: 6px;
+}
+
+.notruf-hint-title {
+    font-size: 14px;
+    font-weight: 600;
+    margin-bottom: 4px;
+}
+
+.notruf-hint-text {
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.85);
+    line-height: 1.4;
+}
+
+.notruf-hint-command {
+    margin-top: 8px;
+    padding: 6px 10px;
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 4px;
+    font-family: monospace;
+    font-size: 12px;
+}
+
+/* ================================================
+   Animations
+   ================================================ */
+
+@keyframes pulse-red {
+    0%, 100% { box-shadow: 0 0 20px rgba(244, 67, 54, 0.4); }
+    50% { box-shadow: 0 0 40px rgba(244, 67, 54, 0.7); }
+}
+
+@keyframes pulse-orange {
+    0%, 100% { box-shadow: 0 0 15px rgba(255, 152, 0, 0.3); }
+    50% { box-shadow: 0 0 30px rgba(255, 152, 0, 0.5); }
+}
+
+.zone-warning.level-high {
+    animation: pulse-red 2s ease-in-out infinite;
+}
+
+.zone-warning.level-medium {
+    animation: pulse-orange 2s ease-in-out infinite;
+}
